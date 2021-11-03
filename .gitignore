@@ -1,3 +1,25 @@
+Examples/Monocular/mono_tum
+Examples/RGB-D/rgbd_tum
+KeyFrameTrajectory.txt
+CameraTrajectory.txt
+Thirdparty/DBoW2/build/
+Thirdparty/DBoW2/lib/
+Thirdparty/g2o/build/
+Thirdparty/g2o/lib/
+Thirdparty/Line3Dpp/build/
+ros_test/config/model_trt.engine
+build/
+lib/
+results_line_segments/
+tools/bin_vocabulary
+OutputObj/
+Thirdparty/Line3Dpp/libs/precompiled/ceres/lib64/vc10/ceres.lib
+data_associate.txt
+result_associate/
+./vscode/
+data/yolo_txts/
+cubeslam_results/*.png
+
 # Prerequisites
 *.d
 
