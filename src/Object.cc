@@ -24,6 +24,7 @@
 #include "isolation_forest.h"
 #include <math.h>
 #include "Converter.h"
+#include "Global.h"
 
 namespace ORB_SLAM2
 {
@@ -187,7 +188,6 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         {
             if (_class_id != mpMap->mvObjectMap[i]->mnClass)
                 continue;
-
             if (mpMap->mvObjectMap[i]->bBadErase)
                 continue;
 
@@ -248,7 +248,6 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
     }
     // Iou data association END ----------------------------------------------------------------------------
 
-
     // *************************************************
     //      STEP 2. Nonparametric data association     *
     // *************************************************
@@ -300,7 +299,8 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
                         mpMap->mvObjectMap[nAssoByIouId]->mReObj.insert(make_pair(mpMap->mvObjectMap[vObjByNPId[i]]->mnId, 1));
                 }
             }
-            // case 2: if association failed by IoU, 
+
+            // case 2: if association failed by IoU,
             else
             {
                 for (int i = 0; i < vObjByNPId.size(); i++)
@@ -347,7 +347,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         bool bAssoByProject = false;
         int nAssoByProId = -1;
         vector<int> vObjByProIouId;
-        
+
         if((flag != "NA") && (flag != "IoU") && (flag != "NP"))
         {
             float fIouMax = 0.0;
@@ -447,7 +447,8 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         // step 4.1 Read t-distribution boundary value.
         float tTestData[122][9] = {0};
         ifstream infile;
-        infile.open("./data/t_test.txt");
+        std::string filePath = WORK_SPACE_PATH + "/data/t_test.txt";
+        infile.open(filePath);
         for (int i = 0; i < 122; i++)
         {
             for (int j = 0; j < 9; j++)
@@ -456,7 +457,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
             }
         }
         infile.close();
-        
+
         // step 4.2 t-test.
         bool bAssoByT = false;
         int nAssoByTId = -1;
@@ -638,7 +639,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
                                 }
                             }
 
-                            break; 
+                            break;
                         }
                     }
                 }
@@ -663,17 +664,17 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
 
         // create a 3d object in the map.
         Object_Map *ObjectMapSingle = new Object_Map;
-        ObjectMapSingle->mObjectFrame.push_back(this);     
-        ObjectMapSingle->mnId = mpMap->mvObjectMap.size(); 
-        ObjectMapSingle->mnClass = _class_id;             
-        ObjectMapSingle->mnConfidence = 1;              
-        ObjectMapSingle->mbFirstObserve = true;            
+        ObjectMapSingle->mObjectFrame.push_back(this);
+        ObjectMapSingle->mnId = mpMap->mvObjectMap.size();
+        ObjectMapSingle->mnClass = _class_id;
+        ObjectMapSingle->mnConfidence = 1;
+        ObjectMapSingle->mbFirstObserve = true;
         ObjectMapSingle->mnAddedID = mCurrentFrame.mnId;
         ObjectMapSingle->mnLastAddID = mCurrentFrame.mnId;
         ObjectMapSingle->mnLastLastAddID = mCurrentFrame.mnId;
-        ObjectMapSingle->mLastRect = mBoxRect;                 
-        ObjectMapSingle->msFrameId.insert(mCurrentFrame.mnId); 
-        ObjectMapSingle->mSumPointsPos = sum_pos_3d;           
+        ObjectMapSingle->mLastRect = mBoxRect;
+        ObjectMapSingle->msFrameId.insert(mCurrentFrame.mnId);
+        ObjectMapSingle->mSumPointsPos = sum_pos_3d;
         ObjectMapSingle->mCenter3D = _Pos;
         this->mAssMapObjCenter = this->_Pos;
 
@@ -682,11 +683,11 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         {
             MapPoint *pMP = Obj_c_MapPonits[i];
 
-            pMP->object_id = ObjectMapSingle->mnId;                           
-            pMP->object_class = ObjectMapSingle->mnClass;                    
+            pMP->object_id = ObjectMapSingle->mnId;
+            pMP->object_class = ObjectMapSingle->mnClass;
             pMP->object_id_vector.insert(make_pair(ObjectMapSingle->mnId, 1));
 
-            if (ObjectMapSingle->mbFirstObserve == true) 
+            if (ObjectMapSingle->mbFirstObserve == true)
                 pMP->First_obj_view = true;
 
             // save to the object.
@@ -707,6 +708,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         mpMap->mvObjectMap.push_back(ObjectMapSingle);
         // create a new object END ------------------------------------------------------
     }
+
 } // ObjectDataAssociation() END --------------------------------------------------------
 
 
@@ -1185,7 +1187,7 @@ void Object_Map::ComputeMeanAndStandard()
     {
         float center_sum_x2 = 0, center_sum_y2 = 0, center_sum_z2 = 0;
 
-        cv::Mat pos = mObjectFrame[i]->_Pos; 
+        cv::Mat pos = mObjectFrame[i]->_Pos;
         cv::Mat pos_ave = mCenter3D;
 
         center_sum_x2 = (pos.at<float>(0) - pos_ave.at<float>(0)) * (pos.at<float>(0) - pos_ave.at<float>(0)); // dis_x^2
@@ -1297,7 +1299,7 @@ void Object_Map::IsolationForestDeleteOutliers()
             if (numMappoint == outliernum[numMOutpoint])
             {
                 numMOutpoint++;
-                pMP = mvpMapObjectMappoints.erase(pMP); 
+                pMP = mvpMapObjectMappoints.erase(pMP);
                 mSumPointsPos -= pos;
             }
             else
@@ -1384,7 +1386,7 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
         if (y_max > image.rows)
             y_max = image.rows;
 
-        // projected bounding box2. 
+        // projected bounding box2.
         ProjectRect2 = cv::Rect(x_min, y_min, x_max - x_min, y_max - y_min);
 
         // 4. 计算 Iou
@@ -1395,9 +1397,10 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     }
 
     // step 2. update the ID of the last frame
+
     if (mnLastAddID != (int)mCurrentFrame.mnId)
     {
-        mnLastLastAddID = mnLastAddID;    
+        mnLastLastAddID = mnLastAddID;
         mnLastAddID = mCurrentFrame.mnId;
 
         mLastLastRect = mLastRect;
@@ -1412,10 +1415,11 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     else
         return false;
 
-    ObjectFrame->mnId = mnId;               
+    ObjectFrame->mnId = mnId;
     ObjectFrame->mnWhichTime = mnConfidence;
 
     // step 3. Add the point cloud of the frame object to the map object
+
     for (size_t j = 0; j < ObjectFrame->Obj_c_MapPonits.size(); ++j)
     {
         MapPoint *pMP = ObjectFrame->Obj_c_MapPonits[j];
@@ -1440,16 +1444,17 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
                 continue;
         }
 
-        pMP->object_id = mnId;       
-        pMP->object_class = mnClass; 
+        pMP->object_id = mnId;
+        pMP->object_class = mnClass;
 
         // add points.
+
         map<int, int>::iterator sit;
         sit = pMP->object_id_vector.find(pMP->object_id);
         if (sit != pMP->object_id_vector.end())
         {
-            int sit_sec = sit->second;                                           
-            pMP->object_id_vector.erase(pMP->object_id);                         
+            int sit_sec = sit->second;
+            pMP->object_id_vector.erase(pMP->object_id);
             pMP->object_id_vector.insert(make_pair(pMP->object_id, sit_sec + 1));
         }
         else
@@ -1489,6 +1494,7 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     }
 
     // step 4. the historical point cloud is projected into the image, and the points not in the box(should not on the edge) are removed.
+
     if ((ObjectFrame->mBox.x > 25) && (ObjectFrame->mBox.y > 25) &&
         (ObjectFrame->mBox.x + ObjectFrame->mBox.width < image.cols - 25) &&
         (ObjectFrame->mBox.y + ObjectFrame->mBox.height < image.rows - 25))
@@ -1542,12 +1548,13 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     }
 
     // step 5. update object mean.
+
     this->ComputeMeanAndStandard();
 
     // step 6. i-Forest.
     this->IsolationForestDeleteOutliers();
 
-    ObjectFrame->mAssMapObjCenter = this->mCenter3D;    
+    ObjectFrame->mAssMapObjCenter = this->mCenter3D;
     mCurrentFrame.mvObjectFrame.push_back(ObjectFrame);
 
     return true;
@@ -1559,13 +1566,13 @@ void Object_Map::ComputeProjectRectFrame(cv::Mat &image, Frame &mCurrentFrame)
 {
     const cv::Mat Rcw = mCurrentFrame.mTcw.rowRange(0, 3).colRange(0, 3);
     const cv::Mat tcw = mCurrentFrame.mTcw.rowRange(0, 3).col(3);
-
     vector<float> x_pt;
     vector<float> y_pt;
     for (int j = 0; j < mvpMapObjectMappoints.size(); j++)
     {
         MapPoint *pMP = mvpMapObjectMappoints[j];
         cv::Mat PointPosWorld = pMP->GetWorldPos();
+
         cv::Mat PointPosCamera = Rcw * PointPosWorld + tcw;
 
         const float xc = PointPosCamera.at<float>(0);
@@ -1659,9 +1666,10 @@ void Object_Map::WhetherMergeTwoMapObjs(Map *mpMap)
 bool Object_Map::DoubleSampleTtest(Object_Map *RepeatObj)
 {
     // Read t-distribution boundary value.
-    float tTestData[122][9] = {0};    
+    float tTestData[122][9] = {0};
     ifstream infile;
-    infile.open("./data/t_test.txt");
+    std::string filePath = WORK_SPACE_PATH + "/data/t_test.txt";
+    infile.open(filePath);
     for (int i = 0; i < 122; i++)
     {
         for (int j = 0; j < 9; j++)
@@ -1729,16 +1737,16 @@ void Object_Map::MergeTwoMapObjs(Object_Map *RepeatObj)
             continue;
         }
 
-        pMP->object_id = mnId;       
-        pMP->object_class = mnClass; 
+        pMP->object_id = mnId;
+        pMP->object_class = mnClass;
 
         map<int, int>::iterator sit;
         sit = pMP->object_id_vector.find(pMP->object_id);
-        if (sit != pMP->object_id_vector.end()) 
+        if (sit != pMP->object_id_vector.end())
         {
-            int sit_sec = sit->second;                                            
-            pMP->object_id_vector.erase(pMP->object_id);                          
-            pMP->object_id_vector.insert(make_pair(pMP->object_id, sit_sec + 1)); 
+            int sit_sec = sit->second;
+            pMP->object_id_vector.erase(pMP->object_id);
+            pMP->object_id_vector.insert(make_pair(pMP->object_id, sit_sec + 1));
         }
         else
         {
@@ -1840,7 +1848,7 @@ void Object_Map::MergeTwoMapObjs(Object_Map *RepeatObj)
     }
 
     // step 5. update direction.
-    if (((mnClass == 73) || (mnClass == 64) || (mnClass == 65) 
+    if (((mnClass == 73) || (mnClass == 64) || (mnClass == 65)
         || (mnClass == 66) || (mnClass == 56)))
     {
         if(RepeatObj->mvAngleTimesAndScore.size() > 0)
@@ -1859,10 +1867,10 @@ void Object_Map::MergeTwoMapObjs(Object_Map *RepeatObj)
 
                             row_this[2] = row_this[2] * ((row_this[1] - row_repeat[1]) / row_this[1]) +
                                         row_repeat[2] * (row_repeat[1] / row_this[1]);
-                            
+
                             row_this[3] = row_this[3] * ((row_this[1] - row_repeat[1]) / row_this[1]) +
                                         row_repeat[3] * (row_repeat[1] / row_this[1]);
-                            
+
                             row_this[4] = row_this[4] * ((row_this[1] - row_repeat[1]) / row_this[1]) +
                                         row_repeat[4] * (row_repeat[1] / row_this[1]);
 
@@ -1956,17 +1964,17 @@ void Object_Map::BigToSmall(Object_Map *SmallObj, float overlap_x, float overlap
     bool bx = false;
     bool by = false;
     bool bz = false;
-    // x 
+    // x
     if ((bxMin = true) && (bxMax = true))
         bx = true;
     else
         bx = false;
-    // y 
+    // y
     if ((byMin = true) && (byMax = true))
         by = true;
     else
         by = false;
-    // z 
+    // z
     if ((bzMin = true) && (bzMax = true))
         bz = true;
     else
@@ -2159,7 +2167,7 @@ void Object_Map::DealTwoOverlapObjs(Object_Map *OverlapObj, float overlap_x, flo
             OverlapObj->BigToSmall(this, overlap_x, overlap_y, overlap_z);
     }
 
-    // case 5: 
+    // case 5:
     else if((bIou == true) && (bSame_time == false) && (bClass == true))
     {
         if (this->mObjectFrame.size()/2 >= OverlapObj->mObjectFrame.size())

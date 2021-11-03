@@ -6,10 +6,11 @@
 #include<algorithm>
 #include<fstream>
 #include<chrono>
-
 #include<opencv2/core/core.hpp>
-
 #include<System.h>
+#include "Global.h"
+
+std::string WORK_SPACE_PATH = "";
 
 using namespace std;
 
@@ -47,13 +48,25 @@ int main(int argc, char **argv)
 
     LoadImages(strFile, vstrImageFilenames, vTimestamps);
 
+    char *buffer;
+    if ((buffer = getcwd(NULL, 0)) == NULL)
+    {
+        std::cerr << "[ERROR] Get CWD Error." << std::endl;
+        return 1;
+    }
+    else
+    {
+        WORK_SPACE_PATH = buffer;
+        std::cout << "[INFO] Current Working Directory is: " << WORK_SPACE_PATH << std::endl;
+    }
+
     int nImages = vstrImageFilenames.size();
 
     string VocFile = "Vocabulary/ORBvoc.bin";
     string YamlFile = "Examples/Monocular/TUM3.yaml";
 
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM2::System SLAM(VocFile, YamlFile, argv[1], ORB_SLAM2::System::MONOCULAR,true);
+    ORB_SLAM2::System SLAM(VocFile, YamlFile, argv[1], ORB_SLAM2::System::MONOCULAR,true, true);
 
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
@@ -78,20 +91,12 @@ int main(int argc, char **argv)
             return 1;
         }
 
-#ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-#else
-        std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
-#endif
 
         // Pass the image to the SLAM system
         SLAM.TrackMonocular(im,tframe);
 
-#ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-#else
-        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
-#endif
 
         double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
 
@@ -109,7 +114,9 @@ int main(int argc, char **argv)
     }
 
     // Stop all threads
+    std::cout << "[FINISHED]" << std::endl;
     SLAM.Shutdown();
+    std::cout << "[FINISHED] Shutdown Finished!" << std::endl;
 
     // Tracking time statistics
     sort(vTimesTrack.begin(),vTimesTrack.end());

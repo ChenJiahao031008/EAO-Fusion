@@ -13,7 +13,7 @@
 #include "Modeler.h"
 
 #include <opencv2/core/eigen.hpp>
-#include <Thirdparty/Line3Dpp/clustering.h>
+#include "clustering.h"
 #include <boost/filesystem.hpp>
 
 

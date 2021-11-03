@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 05/21/2019
@@ -29,18 +29,42 @@ Frame::Frame()
 
 //Copy Constructor
 Frame::Frame(const Frame &frame)
-    :mpORBvocabulary(frame.mpORBvocabulary), mpORBextractorLeft(frame.mpORBextractorLeft), mpORBextractorRight(frame.mpORBextractorRight),
-     mTimeStamp(frame.mTimeStamp), mK(frame.mK.clone()), mDistCoef(frame.mDistCoef.clone()),
-     im_(frame.im_.clone()), rgb_(frame.rgb_.clone()),
-     mbf(frame.mbf), mb(frame.mb), mThDepth(frame.mThDepth), N(frame.N), mvKeys(frame.mvKeys),
-     mvKeysRight(frame.mvKeysRight), mvKeysUn(frame.mvKeysUn),  mvuRight(frame.mvuRight),
-     mvDepth(frame.mvDepth), mBowVec(frame.mBowVec), mFeatVec(frame.mFeatVec),
-     mDescriptors(frame.mDescriptors.clone()), mDescriptorsRight(frame.mDescriptorsRight.clone()),
-     mvpMapPoints(frame.mvpMapPoints), mvbOutlier(frame.mvbOutlier), mnId(frame.mnId),
-     mpReferenceKF(frame.mpReferenceKF), mnScaleLevels(frame.mnScaleLevels),
-     mfScaleFactor(frame.mfScaleFactor), mfLogScaleFactor(frame.mfLogScaleFactor),
-     mvScaleFactors(frame.mvScaleFactors), mvInvScaleFactors(frame.mvInvScaleFactors),
-     mvLevelSigma2(frame.mvLevelSigma2), mvInvLevelSigma2(frame.mvInvLevelSigma2)
+    : mpORBvocabulary(frame.mpORBvocabulary),
+      mpORBextractorLeft(frame.mpORBextractorLeft),
+      mpORBextractorRight(frame.mpORBextractorRight),
+      mTimeStamp(frame.mTimeStamp),
+      mK(frame.mK.clone()),
+      mDistCoef(frame.mDistCoef.clone()),
+      im_(frame.im_.clone()),   //new add.
+      rgb_(frame.rgb_.clone()), //new add.
+      mbf(frame.mbf),
+      mb(frame.mb),
+      mThDepth(frame.mThDepth),
+      N(frame.N),
+      mColorImage(frame.mColorImage.clone()),     // color image.
+      mQuadricImage(frame.mQuadricImage.clone()), // quadrics image.
+      boxes(frame.boxes),
+      boxes_eigen(frame.boxes_eigen),
+      mvKeys(frame.mvKeys),
+      mvKeysRight(frame.mvKeysRight),
+      mvKeysUn(frame.mvKeysUn),
+      mvuRight(frame.mvuRight),
+      mvDepth(frame.mvDepth),
+      mBowVec(frame.mBowVec),
+      mFeatVec(frame.mFeatVec),
+      mDescriptors(frame.mDescriptors.clone()),
+      mDescriptorsRight(frame.mDescriptorsRight.clone()),
+      mvpMapPoints(frame.mvpMapPoints),
+      mvbOutlier(frame.mvbOutlier),
+      mnId(frame.mnId),
+      mpReferenceKF(frame.mpReferenceKF),
+      mnScaleLevels(frame.mnScaleLevels),
+      mfScaleFactor(frame.mfScaleFactor),
+      mfLogScaleFactor(frame.mfLogScaleFactor),
+      mvScaleFactors(frame.mvScaleFactors),
+      mvInvScaleFactors(frame.mvInvScaleFactors),
+      mvLevelSigma2(frame.mvLevelSigma2),
+      mvInvLevelSigma2(frame.mvInvLevelSigma2)
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
@@ -49,7 +73,7 @@ Frame::Frame(const Frame &frame)
     if(!frame.mTcw.empty())
         SetPose(frame.mTcw);
 
-    // [EAO-SLAM] save groundtruth   
+    // [EAO-SLAM] save groundtruth
     if(!frame.mGroundtruthPose_mat.empty())
     {
         mGroundtruthPose_mat = frame.mGroundtruthPose_mat;
@@ -90,7 +114,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
 
     ComputeStereoMatches();
 
-    mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));    
+    mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
     mvbOutlier = vector<bool>(N,false);
 
 
@@ -117,30 +141,39 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     AssignFeaturesToGrid();
 }
 
-Frame::Frame(   const cv::Mat &imGray, 
-                const cv::Mat &imDepth, 
-                const double &timeStamp, 
-                ORBextractor* extractor,
-                ORBVocabulary* voc, 
-                cv::Mat &K, 
-                cv::Mat &distCoef, 
-                const float &bf, 
-                const float &thDepth)
-                                    :   mpORBvocabulary(voc),
-                                        mpORBextractorLeft(extractor),
-                                        mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-                                        mTimeStamp(timeStamp), 
-                                        mK(K.clone()),
-                                        mDistCoef(distCoef.clone()), 
-                                        mbf(bf), 
-                                        mThDepth(thDepth)
+Frame::Frame(const cv::Mat &rawImage, // color image.
+             const cv::Mat &imGray,
+             const cv::Mat &imDepth,
+             const double &timeStamp,
+             ORBextractor *extractor,
+             line_lbd_detect *line_lbd_ptr_frame, // line detect.
+             ORBVocabulary *voc,
+             cv::Mat &K,
+             cv::Mat &distCoef,
+             const float &bf,
+             const float &thDepth,
+             cv::Mat &grayimg,
+             cv::Mat &rgbimg)
+    : mpORBvocabulary(voc),
+      mpORBextractorLeft(extractor),
+      mpORBextractorRight(static_cast<ORBextractor *>(NULL)),
+      mpline_lbd_ptr_frame(line_lbd_ptr_frame), // line detect.
+      mTimeStamp(timeStamp),
+      mColorImage(rawImage.clone()),   // color image.
+      mQuadricImage(rawImage.clone()), // quadrics image.
+      mK(K.clone()),
+      mDistCoef(distCoef.clone()),
+      im_(grayimg.clone()),
+      rgb_(rgbimg.clone()),
+      mbf(bf),
+      mThDepth(thDepth)
 {
     // Frame ID
     mnId=nNextId++;
 
     // Scale Level Info
     mnScaleLevels = mpORBextractorLeft->GetLevels();
-    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();    
+    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
     mfLogScaleFactor = log(mfScaleFactor);
     mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
     mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
@@ -183,6 +216,21 @@ Frame::Frame(   const cv::Mat &imGray,
     mb = mbf/fx;
 
     AssignFeaturesToGrid();
+
+    // note: [EAO-SLAM] line detection.
+    mpline_lbd_ptr_frame->detect_raw_lines(rawImage, keylines_raw);
+    mpline_lbd_ptr_frame->filter_lines(keylines_raw, keylines_out);
+
+    keylines_to_mat(keylines_out, all_lines_mat, 1);
+
+    Eigen::MatrixXd all_lines_raw(all_lines_mat.rows, 4);
+    for (int rr = 0; rr < all_lines_mat.rows; rr++)
+        for (int cc = 0; cc < 4; cc++)
+            all_lines_raw(rr, cc) = all_lines_mat.at<float>(rr, cc);
+
+    // save to frame.
+    all_lines_eigen = all_lines_raw;
+
 }
 
 
@@ -244,29 +292,29 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
 
 
 Frame::Frame(   const cv::Mat &rawImage,                // color image.
-                const cv::Mat &imGray, 
-                const double &timeStamp, 
+                const cv::Mat &imGray,
+                const double &timeStamp,
                 ORBextractor* extractor,
                 line_lbd_detect* line_lbd_ptr_frame,    // line detect.
-                ORBVocabulary* voc, 
-                cv::Mat &K, 
-                cv::Mat &distCoef, 
-                const float &bf, 
-                const float &thDepth, 
-                cv::Mat &grayimg, 
+                ORBVocabulary* voc,
+                cv::Mat &K,
+                cv::Mat &distCoef,
+                const float &bf,
+                const float &thDepth,
+                cv::Mat &grayimg,
                 cv::Mat &rgbimg)
                             :   mpORBvocabulary(voc),
                                 mpORBextractorLeft(extractor),
                                 mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
                                 mpline_lbd_ptr_frame(line_lbd_ptr_frame),   // line detect.
-                                mTimeStamp(timeStamp), 
+                                mTimeStamp(timeStamp),
                                 mColorImage(rawImage.clone()),      // color image.
                                 mQuadricImage(rawImage.clone()),    // quadrics image.
                                 mK(K.clone()),
                                 mDistCoef(distCoef.clone()),
                                 im_(grayimg.clone()),
-                                rgb_(rgbimg.clone()), 
-                                mbf(bf), 
+                                rgb_(rgbimg.clone()),
+                                mbf(bf),
                                 mThDepth(thDepth)
 {
     // Frame ID
@@ -324,7 +372,7 @@ Frame::Frame(   const cv::Mat &rawImage,                // color image.
     mpline_lbd_ptr_frame->detect_raw_lines(rawImage, keylines_raw);
     mpline_lbd_ptr_frame->filter_lines(keylines_raw, keylines_out);
 
-    keylines_to_mat(keylines_out, all_lines_mat,1); 
+    keylines_to_mat(keylines_out, all_lines_mat,1);
 
 	Eigen::MatrixXd all_lines_raw(all_lines_mat.rows,4);
 	for (int rr=0;rr<all_lines_mat.rows;rr++)
@@ -380,7 +428,7 @@ void Frame::SetPose(cv::Mat Tcw)
 }
 
 void Frame::UpdatePoseMatrices()
-{ 
+{
     mRcw = mTcw.rowRange(0,3).colRange(0,3);
     mRwc = mRcw.t();
     mtcw = mTcw.rowRange(0,3).col(3);
@@ -392,7 +440,7 @@ bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)
     pMP->mbTrackInView = false;
 
     // 3D in absolute coordinates
-    cv::Mat P = pMP->GetWorldPos(); 
+    cv::Mat P = pMP->GetWorldPos();
 
     // 3D in camera coordinates
     const cv::Mat Pc = mRcw*P+mtcw;

@@ -5,34 +5,39 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE Release)
 ENDIF()
 
+add_definitions(-w)
+# yolox
+option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
+set(CMAKE_CXX_STANDARD 14)
+
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native  -Wno-unused-function  -Wno-return-type")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3 -march=native  -Wno-unused-function  -Wno-return-type")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -lpthread -O3 -march=native")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -lpthread  -O3 -march=native")
 
 # set carv needed flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__STDC_CONSTANT_MACROS -DGL_GLEXT_PROTOTYPES -D_LINUX -D_REENTRANT -DCGAL_USE_F2C -DCGAL_DISABLE_ROUNDING_MATH_CHECK")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_CONSTANT_MACROS -DGL_GLEXT_PROTOTYPES -D_LINUX -D_REENTRANT -DCGAL_USE_F2C -DCGAL_DISABLE_ROUNDING_MATH_CHECK")
 
 # Check C++11 or C++0x support
-include(CheckCXXCompilerFlag)
-CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-if(COMPILER_SUPPORTS_CXX11)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-   add_definitions(-DCOMPILEDWITHC11)
-   message(STATUS "Using flag -std=c++11.")
-elseif(COMPILER_SUPPORTS_CXX0X)
-   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-   add_definitions(-DCOMPILEDWITHC0X)
-   message(STATUS "Using flag -std=c++0x.")
-else()
-   message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-endif()
+# include(CheckCXXCompilerFlag)
+# CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
+# CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
+# if(COMPILER_SUPPORTS_CXX11)
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+#    add_definitions(-DCOMPILEDWITHC11)
+#    message(STATUS "Using flag -std=c++11.")
+# elseif(COMPILER_SUPPORTS_CXX0X)
+#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+#    add_definitions(-DCOMPILEDWITHC0X)
+#    message(STATUS "Using flag -std=c++0x.")
+# else()
+#    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
+# endif()
 
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
-find_package(OpenCV 3.0 QUIET)
+find_package(OpenCV 3.3.4 QUIET)
 if(NOT OpenCV_FOUND)
     find_package(OpenCV 2.4.3 QUIET)
     if(NOT OpenCV_FOUND)
@@ -66,7 +71,6 @@ link_directories(${Boost_LIBRARY_DIR})
 find_package(LAPACK REQUIRED)
 link_directories(${LAPACK_LIBRARY_DIR})
 
-
 include_directories(
 ${PROJECT_SOURCE_DIR}
 ${PROJECT_SOURCE_DIR}/include
@@ -75,11 +79,35 @@ ${Pangolin_INCLUDE_DIRS}
 ${PROJECT_SOURCE_DIR}/Thirdparty/Line3Dpp
 ${PROJECT_SOURCE_DIR}/Thirdparty/Line3Dpp/build
 ${PROJECT_SOURCE_DIR}/Thirdparty/EDTest
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/DBoW2
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/
+${PROJECT_SOURCE_DIR}/Thirdparty/EDLines
+${PROJECT_SOURCE_DIR}/Thirdparty/EDTest
+${PROJECT_SOURCE_DIR}/Thirdparty/g2o/g2o
 )
+
+## CUDA及TensorRT相关
+find_package(CUDA REQUIRED)
+include_directories(${PROJECT_SOURCE_DIR}/include)
+# cuda
+include_directories(/usr/local/cuda-11.1/include)
+link_directories(/usr/local/cuda-11.1/lib64)
+# cudnn
+include_directories(/home/chen/cuda/include)
+link_directories(/home/chen/cuda/lib64)
+# tensorrt
+include_directories(/home/chen/DeepLearning/settings/TensorRT-7.2.1.6/include)
+link_directories(/home/chen/DeepLearning/settings/TensorRT-7.2.1.6/lib)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Ofast -Wfatal-errors -D_MWAITXINTRIN_H_INCLUDED")
+
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib)
 
 add_library(${PROJECT_NAME} SHARED
+# yolox
+src/YOLOX.cc
+
 src/System.cc
 src/Tracking.cc
 src/LocalMapping.cc
@@ -117,11 +145,11 @@ src/Object.cc      # NOTE [EAO-SLAM]
 # [EAO-SLAM]
 src/line_detect/line_lbd_allclass.cpp
 # [EAO-SLAM]
-src/line_detect/libs/binary_descriptor.cpp 
-src/line_detect/libs/binary_descriptor_matcher.cpp 
-src/line_detect/libs/LSDDetector.cpp  
-src/line_detect/libs/lsd.cpp 
-src/line_detect/libs/bitarray.hpp  
+src/line_detect/libs/binary_descriptor.cpp
+src/line_detect/libs/binary_descriptor_matcher.cpp
+src/line_detect/libs/LSDDetector.cpp
+src/line_detect/libs/lsd.cpp
+src/line_detect/libs/bitarray.hpp
 src/line_detect/libs/bitops.hpp
 src/line_detect/libs/draw.cpp
 src/line_detect/libs/precomp.hpp
@@ -130,6 +158,7 @@ src/line_detect/libs/types.hpp
 src/detect_3d_cuboid/box_proposal_detail.cpp
 src/detect_3d_cuboid/object_3d_util.cpp
 src/detect_3d_cuboid/matrix_utils.cpp
+
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -141,17 +170,21 @@ ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/EDLines/EDLinesLib.a
 ${PROJECT_SOURCE_DIR}/Thirdparty/EDTest/EDLib.a
 ${PROJECT_SOURCE_DIR}/Thirdparty/Line3Dpp/build/libline3Dpp.so
-boost_system boost_filesystem boost_serialization
+boost_system
+boost_filesystem
+boost_serialization
 lapack blas
+nvinfer
+cudart
 )
 
 # Build examples
 
-# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/RGB-D)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/RGB-D)
 
-# add_executable(rgbd_tum
-# Examples/RGB-D/rgbd_tum.cc)
-# target_link_libraries(rgbd_tum ${PROJECT_NAME})
+add_executable(rgbd_tum
+Examples/RGB-D/rgbd_tum.cc)
+target_link_libraries(rgbd_tum ${PROJECT_NAME})
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/Examples/Stereo)
 

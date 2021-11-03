@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 03/21/2019
@@ -20,7 +20,6 @@
 #include "Converter.h"
 #include "Map.h"
 #include "Initializer.h"
-
 #include "Optimizer.h"
 #include "PnPsolver.h"
 
@@ -41,9 +40,10 @@
 
 #include "Object.h"
 #include "FrameDrawer.h"
+#include "Global.h"
 
 #include <cmath>
-#include<algorithm>
+#include <algorithm>
 
 using namespace std;
 
@@ -62,16 +62,26 @@ int frame_id_tracking = -1;
 // typedef Eigen::Vector4f VI;
 typedef Vector5f VI;
 int index=0;
-bool VIC(const VI& lhs, const VI& rhs) 
+bool VIC(const VI& lhs, const VI& rhs)
 {
     return lhs[index] > rhs[index];
 }
 
-Tracking::Tracking( System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase *pKFDB, 
-                    const string &strSettingPath, const int sensor, const string &flag) : 
-                    mState(NO_IMAGES_YET), mSensor(sensor), mbOnlyTracking(false), mbVO(false), mpORBVocabulary(pVoc),
-                                                                                                                                                                                              mpKeyFrameDB(pKFDB), mpInitializer(static_cast<Initializer *>(NULL)), mpSystem(pSys),
-                                                                                                                                                                                              mpFrameDrawer(pFrameDrawer), mpMapDrawer(pMapDrawer), mpMap(pMap), mnLastRelocFrameId(0)
+Tracking::Tracking( System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer,
+                    MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase *pKFDB, const string &strSettingPath, const int sensor, const string &flag, const bool SemanticOnline ):
+                    mState(NO_IMAGES_YET),
+                    mSensor(sensor),
+                    mbOnlyTracking(false),
+                    mbVO(false),
+                    mpORBVocabulary(pVoc),
+                    mpKeyFrameDB(pKFDB),
+                    mpInitializer(static_cast<Initializer *>(NULL)),
+                    mpSystem(pSys),
+                    mpFrameDrawer(pFrameDrawer),
+                    mpMapDrawer(pMapDrawer),
+                    mpMap(pMap),
+                    mnLastRelocFrameId(0),
+                    mbSemanticOnline(SemanticOnline)
 {
     // Load camera parameters from settings file
 
@@ -153,7 +163,7 @@ Tracking::Tracking( System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer
     mflag = flag;
 
     // STEP line detect +++++++++++++++++++++++++++++++++++++++++++
-    bool use_LSD_algorithm = false; 
+    bool use_LSD_algorithm = false;
     bool save_to_imgs = false;
     bool save_to_txts = false;
 
@@ -196,49 +206,66 @@ Tracking::Tracking( System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer
 
     // STEP read groundtruth ++++++++++++++++++++++++++++++++++++++++++++++++
     // notice: Only the camera pose of the initial frame is used to determine the ground plane normal.
-    if (mbReadedGroundtruth == false)
+    miConstraintType = fSettings["ConstraintType"];
+    if ( miConstraintType != 0 && miConstraintType != 1 && miConstraintType != 2){
+        std::cerr << ">>>>>> [WARRNING] USE NO PARAM CONSTRAINT TYPE!" << std::endl;
+        miConstraintType = 0;
+    }
+
+    if (miConstraintType == 1)
     {
-        ifstream infile("./data/groundtruth.txt", ios::in);
-        if (!infile.is_open())
+       if (mbReadedGroundtruth == false)
         {
-            cout << "tum groundtruth file open fail" << endl;
-            exit(233);
-        }
-        else
-        {
-            std::cout << "read groundtruth.txt" << std::endl;
-            mbReadedGroundtruth = true;
-        }
-
-        vector<double> row;
-        double tmp;
-        string line;
-        cv::Mat cam_pose_mat;
-
-        string s0;
-        getline(infile, s0);
-        getline(infile, s0);
-        getline(infile, s0);
-
-        // save as vector<vector<int>> _mat format.
-        while (getline(infile, line))
-        {
-            // string to int.
-            istringstream istr(line);
-            while (istr >> tmp)
+            std::string filePath = WORK_SPACE_PATH + "/data/groundtruth.txt";
+            ifstream infile(filePath, ios::in);
+            if (!infile.is_open())
             {
-                row.push_back(tmp);
+                cout << "tum groundtruth file open fail" << endl;
+                exit(233);
+            }
+            else
+            {
+                std::cout << "read groundtruth.txt" << std::endl;
+                mbReadedGroundtruth = true;
             }
 
-            mGroundtruth_mat.push_back(row); // vector<int> row.
+            vector<double> row;
+            double tmp;
+            string line;
+            cv::Mat cam_pose_mat;
 
-            row.clear();
-            istr.clear();
-            line.clear();
+            string s0;
+            getline(infile, s0);
+            getline(infile, s0);
+            getline(infile, s0);
+
+            // save as vector<vector<int>> _mat format.
+            while (getline(infile, line))
+            {
+                // string to int.
+                istringstream istr(line);
+                while (istr >> tmp)
+                {
+                    row.push_back(tmp);
+                }
+
+                mGroundtruth_mat.push_back(row); // vector<int> row.
+
+                row.clear();
+                istr.clear();
+                line.clear();
+            }
+            infile.close();
         }
-        infile.close();
     }
     // read groundtruth --------------------------------------------------
+    // 实时检测模块
+    if (mbSemanticOnline){
+        std::cout << "[INFO] WORK SPACE PATH IS: " << WORK_SPACE_PATH << std::endl;
+        std::string engineFile = WORK_SPACE_PATH + "/ros_test/config/model_trt.engine";
+        // YOLOX detector(engineFile);
+        yolox_ptr_ = std::make_shared<YOLOX>(engineFile);
+    }
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -300,8 +327,17 @@ cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRe
     return mCurrentFrame.mTcw.clone();
 }
 
-cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp)
+cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp, const bool bSemanticOnline)
 {
+    frame_id_tracking++;
+
+    cv::Mat rawImage = imRGB.clone();
+
+    if (bSemanticOnline)
+    {
+        // TODO send image to semantic thread.
+    }
+
     mImGray = imRGB;
     cv::Mat imDepth = imD;
 
@@ -320,12 +356,253 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
     }
 
-    if (mDepthMapFactor != 1 || imDepth.type() != CV_32F)
-        ;
-    imDepth.convertTo(imDepth, CV_32F, mDepthMapFactor);
+    // step 2 ：将深度相机的disparity转为Depth , 也就是转换成为真正尺度下的深度
+    if ((fabs(mDepthMapFactor - 1.0f) > 1e-5) || imDepth.type() != CV_32F)
+        imDepth.convertTo(    //将图像转换成为另外一种数据类型,具有可选的数据大小缩放系数
+            imDepth,          //输出图像
+            CV_32F,           //输出图像的数据类型
+            mDepthMapFactor); //缩放系数
 
-    mCurrentFrame = Frame(mImGray, imDepth, timestamp, mpORBextractorLeft, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
+    // undistort image:
+    // TODO: 选择图像去畸变而不是点去畸变，对于大部分场景个人认为是不必要的
+    // 先转成灰度图去畸变再转回rgb，意义不明，只能理解为减少计算量
+    cv::Mat gray_imu;
+    cv::undistort(mImGray, gray_imu, mK, mDistCoef);
 
+    cv::Mat rgb_imu;
+    cv::undistort(imRGB, rgb_imu, mK, mDistCoef);
+    if (rgb_imu.channels() == 1)
+    {
+        cvtColor(rgb_imu, rgb_imu, CV_GRAY2RGB);
+    }
+    else if (rgb_imu.channels() == 3)
+    {
+        if (!mbRGB)
+            cvtColor(rgb_imu, rgb_imu, CV_BGR2RGB);
+    }
+    else if (rgb_imu.channels() == 4)
+    {
+        if (mbRGB)
+            cvtColor(rgb_imu, rgb_imu, CV_RGBA2RGB);
+        else
+            cvtColor(rgb_imu, rgb_imu, CV_BGRA2RGB);
+    }
+
+    // STEP 1. Construct Frame.
+    mCurrentFrame = Frame(rawImage, // new: color image.
+                          mImGray,
+                          imDepth, // new: 深度图像
+                          timestamp,
+                          mpORBextractorLeft,
+                          line_lbd_ptr, // new: [EAO] line extractor.
+                          mpORBVocabulary,
+                          mK,
+                          mDistCoef,
+                          mbf,
+                          mThDepth,
+                          gray_imu,
+                          rgb_imu);
+
+    vector<vector<int> > _mat;
+    mCurrentFrame.have_detected = false;
+    mCurrentFrame.finish_detected = false;
+
+    if (bSemanticOnline)
+    {
+        // TODO online detect.
+        std::vector<Object> currentObjs;
+        auto start = std::chrono::system_clock::now();
+
+        yolox_ptr_->Detect(rgb_imu, currentObjs);
+        if (currentObjs.size() == 0)
+        {
+            std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
+        }
+        // 耗时计算
+        auto end = std::chrono::system_clock::now();
+        std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+
+
+        std::vector<BoxSE> boxes_online;
+        for (auto &objInfo : currentObjs)
+        {
+            if (objInfo.prob < 0.5)
+                continue;
+            // 0: person; 24: handbag; 28: suitcase; 39: bottle; 56: chair;
+            // 57: couch; 58:potted plant; 59: bed; 60: dining table; 62: tv;
+            // 63: laptop; 66: keyboard; 67: phone; 73: book;
+            if (objInfo.label != 0 && objInfo.label != 24 && objInfo.label != 28 && objInfo.label != 39 && objInfo.label != 56 && objInfo.label != 57 && objInfo.label != 58 && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 62 && objInfo.label != 63 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73)
+                continue;
+            BoxSE box;
+            box.m_class = objInfo.label;
+            box.m_score = objInfo.prob;
+            box.x = objInfo.rect.x;
+            box.y = objInfo.rect.y;
+            box.width = objInfo.rect.width;
+            box.height = objInfo.rect.height;
+            // box.m_class_name = "";
+            boxes_online.push_back(box);
+        }
+        std::sort(boxes_online.begin(), boxes_online.end(), [](BoxSE a, BoxSE b) -> bool
+                  { return a.m_score > b.m_score; });
+        // save to current frame.
+        mCurrentFrame.boxes = boxes_online;
+
+        // std::vector<BoxSE> --> Eigen::MatrixXd.
+        int i = 0;
+        Eigen::MatrixXd eigenMat;
+
+        eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
+        for (auto &box : mCurrentFrame.boxes)
+        {
+            eigenMat(i, 0) = box.x;
+            eigenMat(i, 1) = box.y;
+            eigenMat(i, 2) = box.width;
+            eigenMat(i, 3) = box.height;
+            eigenMat(i, 4) = box.m_score;
+            i++;
+        }
+        // save to current frame.
+        mCurrentFrame.boxes_eigen = eigenMat;
+    }
+    else
+    {
+        // offline object box.
+        std::string filePath = WORK_SPACE_PATH + "/data/yolo_txts/" + to_string(timestamp) + ".txt";
+        ifstream infile(filePath, ios::in);
+        if (!infile.is_open())
+        {
+            cout << "yolo_detection file open fail" << endl;
+            exit(233);
+        }
+        // else
+        //     cout << "read offline boundingbox" << endl;
+
+        vector<int> row; // one row, one object.
+        int tmp;
+        string line;
+
+        // save as vector<vector<int>> format.
+        while (getline(infile, line))
+        {
+            // string to int.
+            istringstream istr(line);
+            while (istr >> tmp)
+            {
+                row.push_back(tmp);
+            }
+
+            _mat.push_back(row); // vector<vector<int>>.
+            row.clear();
+            istr.clear();
+            line.clear();
+        }
+        infile.close();
+
+        //  vector<vector<int>> --> std::vector<BoxSE>.
+        std::vector<BoxSE> boxes_offline;
+        for (auto &mat_row : _mat)
+        {
+            BoxSE box;
+            box.m_class = mat_row[0];
+            box.m_score = mat_row[5];
+            box.x = mat_row[1];
+            box.y = mat_row[2];
+            box.width = mat_row[3];
+            box.height = mat_row[4];
+            // box.m_class_name = "";
+            boxes_offline.push_back(box);
+        }
+        std::sort(boxes_offline.begin(), boxes_offline.end(), [](BoxSE a, BoxSE b) -> bool
+                  { return a.m_score > b.m_score; });
+        // save to current frame.
+        mCurrentFrame.boxes = boxes_offline;
+
+        // std::vector<BoxSE> --> Eigen::MatrixXd.
+        int i = 0;
+        Eigen::MatrixXd eigenMat;
+
+        eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
+        for (auto &box : mCurrentFrame.boxes)
+        {
+            // std::cout << box.m_class << " " << box.x << " " << box.y << " "
+            //           << box.width << " " << box.height << " " << box.m_score << std::endl;
+            /**
+            * keyboard  66 199 257 193 51
+            * mouse     64 377 320 31 39
+            * cup       41 442 293 51 63
+            * tvmonitor 62 232 93 156 141
+            * remote    65 44 260 38 57
+            */
+            eigenMat(i, 0) = box.x;
+            eigenMat(i, 1) = box.y;
+            eigenMat(i, 2) = box.width;
+            eigenMat(i, 3) = box.height;
+            eigenMat(i, 4) = box.m_score;
+            i++;
+        }
+        // save to current frame.
+        mCurrentFrame.boxes_eigen = eigenMat;
+    }
+    // there are objects in current frame?
+    if (!mCurrentFrame.boxes.empty())
+        mCurrentFrame.have_detected = true;
+    // object detection.------------------------------------------------------------------------
+
+    // STEP get current camera groundtruth by timestamp. +++++++++++++++++++++++++++++++++++++++++++
+    // notice: only use the first frame's pose.
+    string timestamp_string = to_string(timestamp);
+    string timestamp_short_string = timestamp_string.substr(0, timestamp_string.length() - 4);
+
+    Eigen::MatrixXd truth_frame_poses(1, 8); // camera pose Eigen format.
+    cv::Mat cam_pose_mat;                    // camera pose Mat format.
+
+    for (auto &row : mGroundtruth_mat)
+    {
+        string row_string = to_string(row[0]);
+        double delta_time = fabs(row[0] - timestamp);
+        // if (delta_time< 1)
+        //     std::cout << " [INFO] delta_time : " << delta_time << std::endl;
+        string row_short_string = row_string.substr(0, row_string.length() - 4);
+
+        if (row_short_string == timestamp_short_string)
+        // if (delta_time <= 0.05)
+        {
+            // vector --> Eigen.
+            for (int i = 0; i < (int)row.size(); i++)
+            {
+                truth_frame_poses(0) = row[0];
+                truth_frame_poses(1) = row[1];
+                truth_frame_poses(2) = row[2];
+                truth_frame_poses(3) = row[3];
+                truth_frame_poses(4) = row[4];
+                truth_frame_poses(5) = row[5];
+                truth_frame_poses(6) = row[6];
+                truth_frame_poses(7) = row[7];
+            }
+
+            // Eigen --> SE3.
+            g2o::SE3Quat cam_pose_se3(truth_frame_poses.row(0).tail<7>());
+            // std::cout << "cam_pose_se3\n" << cam_pose_se3 << std::endl;
+
+            // SE3 --> Mat.
+            cam_pose_mat = Converter::toCvMat(cam_pose_se3);
+
+            // save to current frame.
+            mCurrentFrame.mGroundtruthPose_mat = cam_pose_mat;
+            if (!mCurrentFrame.mGroundtruthPose_mat.empty())
+            {
+                mCurrentFrame.mGroundtruthPose_eigen = Converter::toEigenMatrixXd(mCurrentFrame.mGroundtruthPose_mat);
+            }
+            break;
+        }
+        else
+        {
+            mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
+            mCurrentFrame.mGroundtruthPose_eigen = Eigen::Matrix4d::Identity(4, 4);
+        }
+    }
+    // get the camera groundtruth by timestamp. ----------------------------------------------------------------------
     Track();
 
     return mCurrentFrame.mTcw.clone();
@@ -339,6 +616,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
 
     cv::Mat rawImage = im.clone();
 
+    // TODO: 分线程更快速
     if (bSemanticOnline)
     {
         // TODO send image to semantic thread.
@@ -361,7 +639,9 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
             cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
     }
 
-    // undistort image
+    // undistort image:
+    // TODO: 选择图像去畸变而不是点去畸变，对于大部分场景个人认为是不必要的
+    // 先转成灰度图去畸变再转回rgb，意义不明，只能理解为减少计算量
     cv::Mat gray_imu;
     cv::undistort(mImGray, gray_imu, mK, mDistCoef);
 
@@ -419,11 +699,73 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
     if (bSemanticOnline)
     {
         // TODO online detect.
+        std::vector<Object> currentObjs;
+        auto start = std::chrono::system_clock::now();
+
+        yolox_ptr_->Detect(rawImage, currentObjs);
+        if (currentObjs.size() == 0)
+        {
+            std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
+        }
+        // 耗时计算
+        auto end = std::chrono::system_clock::now();
+        std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+
+        std::vector<BoxSE> boxes_online;
+        for (auto &objInfo : currentObjs)
+        {
+            if (objInfo.prob < 0.5)
+                continue;
+            // 0: person; 24: handbag; 28: suitcase; 39: bottle; 56: chair;
+            // 57: couch; 58:potted plant; 59: bed; 60: dining table; 62: tv;
+            // 63: laptop; 66: keyboard; 67: phone; 73: book;
+            if (objInfo.label != 0 && objInfo.label != 24 && objInfo.label != 28 && objInfo.label != 39 && objInfo.label != 56 && objInfo.label != 57 && objInfo.label != 58 && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 62 && objInfo.label != 63 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73)
+                continue;
+            BoxSE box;
+            box.m_class = objInfo.label;
+            box.m_score = objInfo.prob;
+            box.x = objInfo.rect.x;
+            box.y = objInfo.rect.y;
+            box.width = objInfo.rect.width;
+            box.height = objInfo.rect.height;
+            // box.m_class_name = "";
+            boxes_online.push_back(box);
+        }
+        std::sort(boxes_online.begin(), boxes_online.end(), [](BoxSE a, BoxSE b) -> bool
+                  { return a.m_score > b.m_score; });
+        // save to current frame.
+        mCurrentFrame.boxes = boxes_online;
+
+        // std::vector<BoxSE> --> Eigen::MatrixXd.
+        int i = 0;
+        Eigen::MatrixXd eigenMat;
+        eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
+        for (auto &box : mCurrentFrame.boxes)
+        {
+            // std::cout << box.m_class << " " << box.x << " " << box.y << " "
+            //           << box.width << " " << box.height << " " << box.m_score << std::endl;
+            /**
+            * keyboard  66 199 257 193 51
+            * mouse     64 377 320 31 39
+            * cup       41 442 293 51 63
+            * tvmonitor 62 232 93 156 141
+            * remote    65 44 260 38 57
+            */
+            eigenMat(i, 0) = box.x;
+            eigenMat(i, 1) = box.y;
+            eigenMat(i, 2) = box.width;
+            eigenMat(i, 3) = box.height;
+            eigenMat(i, 4) = box.m_score;
+            i++;
+        }
+        // save to current frame.
+        mCurrentFrame.boxes_eigen = eigenMat;
     }
     else
     {
         // offline object box.
-        ifstream infile("./data/yolo_txts/" + to_string(timestamp) + ".txt", ios::in);
+        std::string filePath = WORK_SPACE_PATH + "/data/yolo_txts/" + to_string(timestamp) + ".txt";
+        ifstream infile(filePath, ios::in);
         if (!infile.is_open())
         {
             cout << "yolo_detection file open fail" << endl;
@@ -482,10 +824,10 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
             // std::cout << box.m_class << " " << box.x << " " << box.y << " "
             //           << box.width << " " << box.height << " " << box.m_score << std::endl;
             /**
-            * keyboard  66 199 257 193 51 
-            * mouse     64 377 320 31 39 
-            * cup       41 442 293 51 63 
-            * tvmonitor 62 232 93 156 141 
+            * keyboard  66 199 257 193 51
+            * mouse     64 377 320 31 39
+            * cup       41 442 293 51 63
+            * tvmonitor 62 232 93 156 141
             * remote    65 44 260 38 57
             */
             eigenMat(i, 0) = box.x;
@@ -548,7 +890,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
         }
         else
         {
-            mCurrentFrame.mGroundtruthPose_mat = cv::Mat::zeros(4, 4, CV_8UC1);
+            mCurrentFrame.mGroundtruthPose_mat = cv::Mat::ones(4, 4, CV_32F);
             mCurrentFrame.mGroundtruthPose_eigen = Eigen::Matrix4d::Zero(4, 4);
         }
     }
@@ -566,6 +908,7 @@ void Tracking::Track()
         mState = NOT_INITIALIZED;
     }
 
+
     mLastProcessedState = mState;
 
     // Get Map Mutex -> Map cannot be changed
@@ -573,14 +916,16 @@ void Tracking::Track()
 
     if (mState == NOT_INITIALIZED)
     {
-        if (mSensor == System::STEREO || mSensor == System::RGBD)
+        if (mSensor == System::STEREO || mSensor == System::RGBD){
             StereoInitialization();
-        else
+        }
+        else{
             MonocularInitialization();
+        }
         mpFrameDrawer->Update(this);
-
         if (mState != OK)
             return;
+        mSensor = System::MONOCULAR;
     }
     else
     {
@@ -606,8 +951,10 @@ void Tracking::Track()
                 {
                     // note [EAO] for this opensource version, the mainly modifications are in the TrackWithMotionModel().
                     bOK = TrackWithMotionModel();
-                    if (!bOK)
+                    if (!bOK){
                         bOK = TrackReferenceKeyFrame();
+                    }
+
                 }
             }
             else
@@ -805,16 +1152,25 @@ void Tracking::Track()
 
 void Tracking::StereoInitialization()
 {
-    if (mCurrentFrame.N > 500)
+
+    if (mCurrentFrame.N > 400)
     {
         // Set Frame pose to the origin
         mCurrentFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+        mInitialFrame = Frame(mCurrentFrame);
+        mInitialFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+        mInitialSecendFrame = Frame(mCurrentFrame); // [EAO] the second frame when initialization.
 
         // Create KeyFrame
-        KeyFrame *pKFini = new KeyFrame(mCurrentFrame, mpMap, mpKeyFrameDB);
+        KeyFrame *pKFini = new KeyFrame(mInitialFrame, mpMap, mpKeyFrameDB);
+        KeyFrame *pKFcur = new KeyFrame(mCurrentFrame, mpMap, mpKeyFrameDB);
 
-        // Insert KeyFrame in the map
+        // pKFini->ComputeBoW();
+        // pKFcur->ComputeBoW();
+
+        // Insert KFs in the map
         mpMap->AddKeyFrame(pKFini);
+        mpMap->AddKeyFrame(pKFcur);
 
         // Create MapPoints and asscoiate to KeyFrame
         for (int i = 0; i < mCurrentFrame.N; i++)
@@ -825,35 +1181,89 @@ void Tracking::StereoInitialization()
                 cv::Mat x3D = mCurrentFrame.UnprojectStereo(i);
                 MapPoint *pNewMP = new MapPoint(x3D, pKFini, mpMap);
                 pNewMP->AddObservation(pKFini, i);
+                pNewMP->AddObservation(pKFcur, i);
+
                 pKFini->AddMapPoint(pNewMP, i);
+                pKFcur->AddMapPoint(pNewMP, i);
+
                 pNewMP->ComputeDistinctiveDescriptors();
                 pNewMP->UpdateNormalAndDepth();
+
+                // mCurrentFrame.mvbOutlier[i] = false;
+                mCurrentFrame.mvpMapPoints[i] = pNewMP;
+
                 mpMap->AddMapPoint(pNewMP);
 
-                mCurrentFrame.mvpMapPoints[i] = pNewMP;
             }
         }
-
+        // Update Connections
+        // pKFini->UpdateConnections();
+        // pKFcur->UpdateConnections();
         cout << "New map created with " << mpMap->MapPointsInMap() << " points" << endl;
 
-        mpLocalMapper->InsertKeyFrame(pKFini);
+        pKFini->SetPose(pKFini->GetPose());
+        pKFcur->SetPose(pKFcur->GetPose());
 
-        mLastFrame = Frame(mCurrentFrame);
+
+
+        {
+            // NOTE [EAO] rotate the world coordinate to the initial frame (groundtruth provides the normal vector of the ground).
+            // only use the groundtruth of the first frame.
+            // TODO: 替换这种方法
+            cv::Mat InitToGround = mCurrentFrame.mGroundtruthPose_mat;
+            // cv::Mat InitToGround = cv::Mat::eye(4, 4, CV_32F);
+            cv::Mat R = InitToGround.rowRange(0, 3).colRange(0, 3);
+            cv::Mat t = InitToGround.rowRange(0, 3).col(3);
+            cv::Mat Rinv = R.t();
+            cv::Mat Ow = -Rinv * t;
+            cv::Mat GroundToInit = cv::Mat::eye(4, 4, CV_32F);
+            Rinv.copyTo(GroundToInit.rowRange(0, 3).colRange(0, 3));
+            Ow.copyTo(GroundToInit.rowRange(0, 3).col(3));
+
+            std::cout << GroundToInit << std::endl;
+
+            bool build_worldframe_on_ground = true;
+            std::vector<MapPoint *> vpAllMapPoints = pKFcur->GetMapPointMatches();
+            if (build_worldframe_on_ground) // transform initial pose and map to ground frame
+            {
+                pKFini->SetPose(pKFini->GetPose() * GroundToInit);
+                pKFcur->SetPose(pKFcur->GetPose() * GroundToInit);
+
+                for (size_t iMP = 0; iMP < vpAllMapPoints.size(); iMP++)
+                {
+                    if (vpAllMapPoints[iMP])
+                    {
+                        MapPoint *pMP = vpAllMapPoints[iMP];
+                        pMP->SetWorldPos(InitToGround.rowRange(0, 3).colRange(0, 3) * pMP->GetWorldPos() + InitToGround.rowRange(0, 3).col(3));
+                    }
+                }
+            }
+            // [EAO] rotate the world coordinate to the initial frame -----------------------------------------------------------
+        }
+
+        mpLocalMapper->InsertKeyFrame(pKFini);
+        mpLocalMapper->InsertKeyFrame(pKFcur);
+
+        // mInitialFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+        // mCurrentFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+        mCurrentFrame.SetPose(pKFcur->GetPose());
         mnLastKeyFrameId = mCurrentFrame.mnId;
         mpLastKeyFrame = pKFini;
 
+        mvpLocalKeyFrames.push_back(pKFcur);
         mvpLocalKeyFrames.push_back(pKFini);
         mvpLocalMapPoints = mpMap->GetAllMapPoints();
-        mpReferenceKF = pKFini;
-        mCurrentFrame.mpReferenceKF = pKFini;
+        mpReferenceKF = pKFcur;
+        mCurrentFrame.mpReferenceKF = pKFcur;
+
+        mLastFrame = Frame(mCurrentFrame);
 
         mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
-
         mpMap->mvpKeyFrameOrigins.push_back(pKFini);
-
-        mpMapDrawer->SetCurrentCameraPose(mCurrentFrame.mTcw);
+        mpMapDrawer->SetCurrentCameraPose(pKFini->GetPose());
 
         mState = OK;
+
     }
 }
 
@@ -1015,34 +1425,39 @@ void Tracking::CreateInitialMapMonocular()
         }
     }
 
-    // NOTE [EAO] rotate the world coordinate to the initial frame (groundtruth provides the normal vector of the ground).
-    // only use the groundtruth of the first frame.
-    cv::Mat InitToGround = mInitialFrame.mGroundtruthPose_mat;
-
-    cv::Mat R = InitToGround.rowRange(0, 3).colRange(0, 3);
-    cv::Mat t = InitToGround.rowRange(0, 3).col(3);
-    cv::Mat Rinv = R.t();
-    cv::Mat Ow = -Rinv * t;
-    cv::Mat GroundToInit = cv::Mat::eye(4, 4, CV_32F);
-    Rinv.copyTo(GroundToInit.rowRange(0, 3).colRange(0, 3));
-    Ow.copyTo(GroundToInit.rowRange(0, 3).col(3));
-
-    bool build_worldframe_on_ground = true;
-    if (build_worldframe_on_ground) // transform initial pose and map to ground frame
     {
-        pKFini->SetPose(pKFini->GetPose() * GroundToInit);
-        pKFcur->SetPose(pKFcur->GetPose() * GroundToInit);
+        // NOTE [EAO] rotate the world coordinate to the initial frame (groundtruth provides the normal vector of the ground).
+        // only use the groundtruth of the first frame.
+        // TODO: 替换这种方法
+        cv::Mat InitToGround = mInitialFrame.mGroundtruthPose_mat;
+        std::cout << InitToGround << std::endl;
 
-        for (size_t iMP = 0; iMP < vpAllMapPoints.size(); iMP++)
+        // InitToGround = cv::Mat::eye(4, 4, CV_32F);
+        cv::Mat R = InitToGround.rowRange(0, 3).colRange(0, 3);
+        cv::Mat t = InitToGround.rowRange(0, 3).col(3);
+        cv::Mat Rinv = R.t();
+        cv::Mat Ow = -Rinv * t;
+        cv::Mat GroundToInit = cv::Mat::eye(4, 4, CV_32F);
+        Rinv.copyTo(GroundToInit.rowRange(0, 3).colRange(0, 3));
+        Ow.copyTo(GroundToInit.rowRange(0, 3).col(3));
+
+        bool build_worldframe_on_ground = true;
+        if (build_worldframe_on_ground) // transform initial pose and map to ground frame
         {
-            if (vpAllMapPoints[iMP])
+            pKFini->SetPose(pKFini->GetPose() * GroundToInit);
+            pKFcur->SetPose(pKFcur->GetPose() * GroundToInit);
+
+            for (size_t iMP = 0; iMP < vpAllMapPoints.size(); iMP++)
             {
-                MapPoint *pMP = vpAllMapPoints[iMP];
-                pMP->SetWorldPos(InitToGround.rowRange(0, 3).colRange(0, 3) * pMP->GetWorldPos() + InitToGround.rowRange(0, 3).col(3));
+                if (vpAllMapPoints[iMP])
+                {
+                    MapPoint *pMP = vpAllMapPoints[iMP];
+                    pMP->SetWorldPos(InitToGround.rowRange(0, 3).colRange(0, 3) * pMP->GetWorldPos() + InitToGround.rowRange(0, 3).col(3));
+                }
             }
         }
+        // [EAO] rotate the world coordinate to the initial frame -----------------------------------------------------------
     }
-    // [EAO] rotate the world coordinate to the initial frame -----------------------------------------------------------
 
     mpLocalMapper->InsertKeyFrame(pKFini);
     mpLocalMapper->InsertKeyFrame(pKFcur);
@@ -1060,10 +1475,8 @@ void Tracking::CreateInitialMapMonocular()
     mLastFrame = Frame(mCurrentFrame);
 
     mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
-
-    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
-
     mpMap->mvpKeyFrameOrigins.push_back(pKFini);
+    mpMapDrawer->SetCurrentCameraPose(pKFcur->GetPose());
 
     mState = OK;
 }
@@ -1211,34 +1624,34 @@ bool Tracking::TrackWithMotionModel()
     bool bCubeslam = false;
     if((mCurrentFrame.mnId > 10) && bCubeslam)
     {
-        Eigen::Matrix3d calib; 
+        Eigen::Matrix3d calib;
         calib << 535.4,  0,  320.1,
                  0,  539.2, 247.6,
                  0,      0,     1;
 
         detect_3d_cuboid detect_cuboid_obj;
-        detect_cuboid_obj.whether_plot_detail_images = false;	
-        detect_cuboid_obj.whether_plot_final_images = false;	
-        detect_cuboid_obj.print_details = false;  				
-        detect_cuboid_obj.set_calibration(calib);				
-        detect_cuboid_obj.whether_sample_bbox_height = false;	
-        detect_cuboid_obj.whether_sample_cam_roll_pitch = false; 
-        detect_cuboid_obj.nominal_skew_ratio = 2;				
+        detect_cuboid_obj.whether_plot_detail_images = false;
+        detect_cuboid_obj.whether_plot_final_images = false;
+        detect_cuboid_obj.print_details = false;
+        detect_cuboid_obj.set_calibration(calib);
+        detect_cuboid_obj.whether_sample_bbox_height = false;
+        detect_cuboid_obj.whether_sample_cam_roll_pitch = false;
+        detect_cuboid_obj.nominal_skew_ratio = 2;
         detect_cuboid_obj.whether_save_final_images = true;
 
         std::vector<ObjectSet> frames_cuboids;
-        
+
         detect_cuboid_obj.detect_cuboid(mCurrentFrame.mColorImage,
                                         mCurrentFrame.mGroundtruthPose_eigen,
                                         mCurrentFrame.boxes_eigen,
-                                        mCurrentFrame.all_lines_eigen, 
+                                        mCurrentFrame.all_lines_eigen,
                                         frames_cuboids);
-        
+
         cv::imwrite("cubeslam_results/" + to_string(mCurrentFrame.mnId) + ".png", detect_cuboid_obj.cuboids_2d_img);
     }
     // Cube SLAM END ---------------------------------------------------------
 
-    fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint *>(NULL));
+    // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint *>(NULL));
 
     // *****************************
     // STEP 1. construct 2D object *
@@ -1400,9 +1813,9 @@ bool Tracking::TrackWithMotionModel()
         if (objs_2d[f]->bad)
             continue;
 
-        // ignore the error detect by yolo.
-        if ((objs_2d[f]->_class_id == 0) || (objs_2d[f]->_class_id == 63) || (objs_2d[f]->_class_id == 15))
-            objs_2d[f]->bad = true;
+        // // ignore the error detect by yolo.
+        // if ((objs_2d[f]->_class_id == 0) || (objs_2d[f]->_class_id == 63) || (objs_2d[f]->_class_id == 15))
+        //     objs_2d[f]->bad = true;
 
         // too large in the image.
         if ((float)objs_2d[f]->mBoxRect.area() / (float)(image.cols * image.rows) > 0.5)
@@ -1458,6 +1871,7 @@ bool Tracking::TrackWithMotionModel()
             }
         }
     }
+
     // erase the bad object.
     vector<Object_2D *>::iterator it;
     for (it = objs_2d.begin(); it != objs_2d.end(); )
@@ -1468,10 +1882,10 @@ bool Tracking::TrackWithMotionModel()
         {
             // if ((*it)->Obj_c_MapPonits.size() >= 5)
             // {
-            //     cv::rectangle(image,                   
-            //                     (*it)->mBoxRect,         
-            //                     cv::Scalar(100, 100, 256), 
-            //                     2);                      
+            //     cv::rectangle(image,
+            //                     (*it)->mBoxRect,
+            //                     cv::Scalar(100, 100, 256),
+            //                     2);
             // }
 
             // cv::putText(image, to_string((*it)->_class_id),
@@ -1500,6 +1914,7 @@ bool Tracking::TrackWithMotionModel()
             mCurrentFrame.mvLastLastObjectFrame = mLastFrame.mvLastObjectFrame;
     }
     // copy objects END -------------------------------------------------------
+
 
     // *******************************************************************************
     // STEP 8. Merges objects with 5-10 points  between two adjacent frames.
@@ -1537,15 +1952,19 @@ bool Tracking::TrackWithMotionModel()
     // ************************************
     // STEP 9. Initialize the object map  *
     // ************************************
-    if ((mCurrentFrame.mnId > mInitialSecendFrame.mnId) && mbObjectIni == false)
+    // if ((mCurrentFrame.mnId > mInitialSecendFrame.mnId) && mbObjectIni == false)
+    //     InitObjMap(objs_2d);
+    if ( mbObjectIni == false){
         InitObjMap(objs_2d);
+    }
 
     // **************************************************************
     // STEP 10. Data association after initializing the object map. *
     // **************************************************************
     if ((mCurrentFrame.mnId > mnObjectIniFrameID) && (mbObjectIni == true))
     {
-        // step 10.1 points of the object that appeared in the last 30 frames 
+
+        // step 10.1 points of the object that appeared in the last 30 frames
         // are projected into the image to form a projection bounding box.
         for (int i = 0; i < (int)mpMap->mvObjectMap.size(); i++)
         {
@@ -1553,8 +1972,10 @@ bool Tracking::TrackWithMotionModel()
                 continue;
 
             // object appeared in the last 30 frames.
-            if (mpMap->mvObjectMap[i]->mnLastAddID > mCurrentFrame.mnId - 30)
+
+            if (mpMap->mvObjectMap[i]->mnLastAddID > mCurrentFrame.mnId - 30){
                 mpMap->mvObjectMap[i]->ComputeProjectRectFrame(image, mCurrentFrame);
+            }
             else
             {
                 mpMap->mvObjectMap[i]->mRectProject = cv::Rect(0, 0, 0, 0);
@@ -1571,7 +1992,6 @@ bool Tracking::TrackWithMotionModel()
                 objs_2d[k]->current = false;
                 continue;
             }
-
             // note: data association.
             objs_2d[k]->ObjectDataAssociation(mpMap, mCurrentFrame, image, mflag);
         }
@@ -1661,7 +2081,7 @@ bool Tracking::TrackWithMotionModel()
                 continue;
 
             // estimate only regular objects.
-            if (((objMap->mnClass == 73) || (objMap->mnClass == 64) || (objMap->mnClass == 65) 
+            if (((objMap->mnClass == 73) || (objMap->mnClass == 64) || (objMap->mnClass == 65)
                 || (objMap->mnClass == 66) || (objMap->mnClass == 56)))
             {
                 // objects appear in current frame.
@@ -1674,7 +2094,7 @@ bool Tracking::TrackWithMotionModel()
             // step 10.7 project quadrics to the image (only for visualization).
             cv::Mat axe = cv::Mat::zeros(3, 1, CV_32F);
             axe.at<float>(0) = mpMap->mvObjectMap[i]->mCuboid3D.lenth / 2;
-            axe.at<float>(1) = mpMap->mvObjectMap[i]->mCuboid3D.width / 2;  
+            axe.at<float>(1) = mpMap->mvObjectMap[i]->mCuboid3D.width / 2;
             axe.at<float>(2) = mpMap->mvObjectMap[i]->mCuboid3D.height / 2;
 
             // object pose (world).
@@ -1688,9 +2108,9 @@ bool Tracking::TrackWithMotionModel()
 
             // draw.
             image = DrawQuadricProject( this->mCurrentFrame.mQuadricImage,
-                                        P,   
-                                        axe, 
-                                        Twq, 
+                                        P,
+                                        axe,
+                                        Twq,
                                         mpMap->mvObjectMap[i]->mnClass);
         }
     } // data association END ----------------------------------------------------------------
@@ -1776,76 +2196,93 @@ bool Tracking::TrackLocalMap()
 // note [EAO] Modify: Create keyframes by new object.
 int Tracking::NeedNewKeyFrame()
 {
-    if (mbOnlyTracking)
+    // Step 1：纯VO模式下不插入关键帧
+    if(mbOnlyTracking)
         return false;
 
     // If Local Mapping is freezed by a Loop Closure do not insert keyframes
-    if (mpLocalMapper->isStopped() || mpLocalMapper->stopRequested())
+    // Step 2：如果局部地图线程被闭环检测使用，则不插入关键帧
+    if(mpLocalMapper->isStopped() || mpLocalMapper->stopRequested())
         return false;
-
+    // 获取当前地图中的关键帧数目
     const int nKFs = mpMap->KeyFramesInMap();
 
     // Do not insert keyframes if not enough frames have passed from last relocalisation
-    if (mCurrentFrame.mnId < mnLastRelocFrameId + mMaxFrames && nKFs > mMaxFrames)
+    // mCurrentFrame.mnId是当前帧的ID
+    // mnLastRelocFrameId是最近一次重定位帧的ID
+    // mMaxFrames等于图像输入的帧率
+    //  Step 3：如果距离上一次重定位比较近，并且关键帧数目超出最大限制，不插入关键帧
+    if( mCurrentFrame.mnId < mnLastRelocFrameId + mMaxFrames && nKFs>mMaxFrames)
         return false;
 
     // Tracked MapPoints in the reference keyframe
+    // Step 4：得到参考关键帧跟踪到的地图点数量
+    // UpdateLocalKeyFrames 函数中会将与当前关键帧共视程度最高的关键帧设定为当前帧的参考关键帧
+
+    // 地图点的最小观测次数
     int nMinObs = 3;
-    if (nKFs <= 2)
-        nMinObs = 2;
+    if(nKFs<=2)
+        nMinObs=2;
+    // 参考关键帧地图点中观测的数目>= nMinObs的地图点数目
     int nRefMatches = mpReferenceKF->TrackedMapPoints(nMinObs);
 
     // Local Mapping accept keyframes?
+    // Step 5：查询局部地图线程是否繁忙，当前能否接受新的关键帧
     bool bLocalMappingIdle = mpLocalMapper->AcceptKeyFrames();
 
-    // Stereo & RGB-D: Ratio of close "matches to map"/"total matches"
-    // "total matches = matches to map + visual odometry matches"
-    // Visual odometry matches will become MapPoints if we insert a keyframe.
-    // This ratio measures how many MapPoints we could create if we insert a keyframe.
-    int nMap = 0;
-    int nTotal = 0;
-    if (mSensor != System::MONOCULAR)
+    // Check how many "close" points are being tracked and how many could be potentially created.
+    // Step 6：对于双目或RGBD摄像头，统计成功跟踪的近点的数量，如果跟踪到的近点太少，没有跟踪到的近点较多，可以插入关键帧
+     int nNonTrackedClose = 0;  //双目或RGB-D中没有跟踪到的近点
+    int nTrackedClose= 0;       //双目或RGB-D中成功跟踪的近点（三维点）
+    if(mSensor!=System::MONOCULAR)
     {
-        for (int i = 0; i < mCurrentFrame.N; i++)
+        for(int i =0; i<mCurrentFrame.N; i++)
         {
-            if (mCurrentFrame.mvDepth[i] > 0 && mCurrentFrame.mvDepth[i] < mThDepth)
+            // 深度值在有效范围内
+            if(mCurrentFrame.mvDepth[i]>0 && mCurrentFrame.mvDepth[i]<mThDepth)
             {
-                nTotal++;
-                if (mCurrentFrame.mvpMapPoints[i])
-                    if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
-                        nMap++;
+                if(mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
+                    nTrackedClose++;
+                else
+                    nNonTrackedClose++;
             }
         }
     }
-    else
-    {
-        // There are no visual odometry matches in the monocular case
-        nMap = 1;
-        nTotal = 1;
-    }
 
-    const float ratioMap = (float)nMap / fmax(1.0f, nTotal);
+    // 双目或RGBD情况下：跟踪到的地图点中近点太少 同时 没有跟踪到的三维点太多，可以插入关键帧了
+    // 单目时，为false
+    bool bNeedToInsertClose = (nTrackedClose<100) && (nNonTrackedClose>70);
 
+    // Step 7：决策是否需要插入关键帧
     // Thresholds
+    // Step 7.1：设定比例阈值，当前帧和参考关键帧跟踪到点的比例，比例越大，越倾向于增加关键帧
     float thRefRatio = 0.75f;
-    if (nKFs < 2)
+
+    // 关键帧只有一帧，那么插入关键帧的阈值设置的低一点，插入频率较低
+    if(nKFs<2)
         thRefRatio = 0.4f;
 
-    if (mSensor == System::MONOCULAR)
+    //单目情况下插入关键帧的频率很高
+    if(mSensor==System::MONOCULAR)
         thRefRatio = 0.9f;
 
-    float thMapRatio = 0.35f;
-    if (mnMatchesInliers > 300)
-        thMapRatio = 0.20f;
-
     // Condition 1a: More than "MaxFrames" have passed from last keyframe insertion
-    const bool c1a = mCurrentFrame.mnId >= mnLastKeyFrameId + mMaxFrames;
+    // Step 7.2：很长时间没有插入关键帧，可以插入
+    const bool c1a = mCurrentFrame.mnId>=mnLastKeyFrameId+mMaxFrames;
+
     // Condition 1b: More than "MinFrames" have passed and Local Mapping is idle
-    const bool c1b = (mCurrentFrame.mnId >= mnLastKeyFrameId + mMinFrames && bLocalMappingIdle);
-    //Condition 1c: tracking is weak
-    const bool c1c = mSensor != System::MONOCULAR && (mnMatchesInliers < nRefMatches * 0.25 || ratioMap < 0.3f);
+    // Step 7.3：满足插入关键帧的最小间隔并且localMapper处于空闲状态，可以插入
+    const bool c1b = (mCurrentFrame.mnId>=mnLastKeyFrameId+mMinFrames && bLocalMappingIdle);
+
+    // Condition 1c: tracking is weak
+    // Step 7.4：在双目，RGB-D的情况下当前帧跟踪到的点比参考关键帧的0.25倍还少，或者满足bNeedToInsertClose
+    const bool c1c =  mSensor!=System::MONOCULAR &&             //只考虑在双目，RGB-D的情况
+                    (mnMatchesInliers<nRefMatches*0.25 ||       //当前帧和地图点匹配的数目非常少
+                      bNeedToInsertClose) ;                     //需要插入
+
     // Condition 2: Few tracked points compared to reference keyframe. Lots of visual odometry compared to map matches.
-    const bool c2 = ((mnMatchesInliers < nRefMatches * thRefRatio || ratioMap < thMapRatio) && mnMatchesInliers > 15);
+    // Step 7.5：和参考帧相比当前跟踪到的点太少 或者满足bNeedToInsertClose；同时跟踪到的内点还不能太少
+    const bool c2 = ((mnMatchesInliers < nRefMatches * thRefRatio || bNeedToInsertClose) && mnMatchesInliers > 15);
 
     // note [EAO] create new keyframe by object.
     bool c1d = false;
@@ -2490,17 +2927,17 @@ void Tracking::AssociateObjAndLines(vector<Object_2D *> objs_2d)
 		Vector2d ExpanRightBottom = Vector2d(dRightExpand, dBottomExpand);  // rightbottom.
 
         // step 3. associate object with lines.
-        Eigen::MatrixXd ObjectLines(AllLinesEigen.rows(),AllLinesEigen.cols()); 
+        Eigen::MatrixXd ObjectLines(AllLinesEigen.rows(),AllLinesEigen.cols());
 		int nInsideLinesNum = 0;
 		for (int line_id = 0; line_id < AllLinesEigen.rows(); line_id++)
         {
             // check endpoints of the lines, whether inside the box.
-            if (check_inside_box(   AllLinesEigen.row(line_id).head<2>(), 
-                                    ExpanLeftTop, 
+            if (check_inside_box(   AllLinesEigen.row(line_id).head<2>(),
+                                    ExpanLeftTop,
                                     ExpanRightBottom ))
             {
                 if(check_inside_box(AllLinesEigen.row(line_id).tail<2>(),
-                                    ExpanLeftTop, 
+                                    ExpanLeftTop,
                                     ExpanRightBottom ))
                 {
                     ObjectLines.row(nInsideLinesNum) = AllLinesEigen.row(line_id);
@@ -2510,11 +2947,11 @@ void Tracking::AssociateObjAndLines(vector<Object_2D *> objs_2d)
         }
 
         // step 4. merge lines.
-        double pre_merge_dist_thre = 20; 
-		double pre_merge_angle_thre = 5; 
+        double pre_merge_dist_thre = 20;
+		double pre_merge_angle_thre = 5;
 		double edge_length_threshold = 30;
 	    MatrixXd ObjectLinesAfterMerge;
-		merge_break_lines(	ObjectLines.topRows(nInsideLinesNum), 
+		merge_break_lines(	ObjectLines.topRows(nInsideLinesNum),
 							ObjectLinesAfterMerge, 		// output lines after merge.
 							pre_merge_dist_thre,		// the distance threshold between two line, 20 pixels.
 							pre_merge_angle_thre, 		// angle threshold between two line, 5°.
@@ -2568,12 +3005,12 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
         {
             MapPoint *pMP = obj->Obj_c_MapPonits[i];
 
-            pMP->object_id = ObjectMapSingle->mnId;                            
-            pMP->object_class = ObjectMapSingle->mnClass;                      
+            pMP->object_id = ObjectMapSingle->mnId;
+            pMP->object_class = ObjectMapSingle->mnClass;
             pMP->object_id_vector.insert(make_pair(ObjectMapSingle->mnId, 1)); // the point is first observed by the object.
 
             if (ObjectMapSingle->mbFirstObserve == true)
-                pMP->First_obj_view = true; 
+                pMP->First_obj_view = true;
 
             // save to the object.
             ObjectMapSingle->mvpMapObjectMappoints.push_back(pMP);
@@ -2586,8 +3023,8 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
 
         // save this 2d object to current frame (associates with a 3d object in the map).
         mCurrentFrame.mvObjectFrame.push_back(obj);
-        //mCurrentFrame.mvLastObjectFrame.push_back(obj);    
-        //mCurrentFrame.mvLastLastObjectFrame.push_back(obj); 
+        //mCurrentFrame.mvLastObjectFrame.push_back(obj);
+        //mCurrentFrame.mvLastLastObjectFrame.push_back(obj);
 
         // todo: save to key frame.
 
@@ -2740,7 +3177,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
             float th = 5.0;             // threshold of the angle.
             if(objMap->mnClass == 56)   // chair.
             {
-                if((dis_angle2 < th) || (dis_angle3 < th))    
+                if((dis_angle2 < th) || (dis_angle3 < th))
                     num++;
                 if(dis_angle1 < th)
                 {
@@ -2768,7 +3205,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
                 // the shortest edge is lenth2.
                 if( min(min(lenth1, lenth2), lenth3) == lenth2)
                 {
-                    if((dis_angle1 < th) || (dis_angle3 < th))    
+                    if((dis_angle1 < th) || (dis_angle3 < th))
                     {
                         num++;
                         if(dis_angle1 < th)
@@ -2781,7 +3218,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
                 // the shortest edge is lenth3.
                 if( min(min(lenth1, lenth2), lenth3) == lenth3)
                 {
-                    if((dis_angle1 < th) || (dis_angle2 < th))  
+                    if((dis_angle1 < th) || (dis_angle2 < th))
                     {
                         num++;
                         if(dis_angle1 < th)
@@ -2830,7 +3267,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
     for (auto &row : objMap->mvAngleTimesAndScore)
     {
         if(row[0] == AngleTimesAndScore[0])
-        {   
+        {
             row[1] += 1.0;
             row[2] = AngleTimesAndScore[2] * (1/row[1]) + row[2] * (1 - 1/row[1]);
             row[3] = AngleTimesAndScore[3] * (1/row[1]) + row[3] * (1 - 1/row[1]);

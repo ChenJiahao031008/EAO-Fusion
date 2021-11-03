@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 03/21/2019
@@ -17,15 +17,15 @@
 #include<opencv2/core/core.hpp>
 #include<opencv2/features2d/features2d.hpp>
 
-#include"Viewer.h"
-#include"FrameDrawer.h"
-#include"Map.h"
-#include"LocalMapping.h"
-#include"LoopClosing.h"
-#include"Frame.h"
+#include "Viewer.h"
+#include "FrameDrawer.h"
+#include "Map.h"
+#include "LocalMapping.h"
+#include "LoopClosing.h"
+#include "Frame.h"
 #include "ORBVocabulary.h"
-#include"KeyFrameDatabase.h"
-#include"ORBextractor.h"
+#include "KeyFrameDatabase.h"
+#include "ORBextractor.h"
 #include "Initializer.h"
 #include "MapDrawer.h"
 #include "System.h"
@@ -40,6 +40,10 @@
 #include <line_lbd/line_descriptor.hpp>
 #include <line_lbd/line_lbd_allclass.h>
 
+// YOLOX
+#include "Global.h"
+#include "YOLOX.h"
+
 class ProbabilityMapping;
 
 namespace ORB_SLAM2
@@ -51,19 +55,19 @@ class Map;
 class LocalMapping;
 class LoopClosing;
 class System;
+// class YOLOX;
 
 
 class Tracking
-{  
+{
 
 public:
-    Tracking(System* pSys, ORBVocabulary* pVoc, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, Map* pMap,
-             KeyFrameDatabase* pKFDB, const string &strSettingPath, const int sensor, const string &flag);
+    Tracking(System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer, MapDrawer *pMapDrawer, Map *pMap, KeyFrameDatabase *pKFDB, const string &strSettingPath, const int sensor, const string &flag, const bool SemanticOnline);
 
     // Preprocess the input and call Track(). Extract features and performs stereo matching.
     cv::Mat GrabImageStereo(const cv::Mat &imRectLeft,const cv::Mat &imRectRight, const double &timestamp);
-    cv::Mat GrabImageRGBD(const cv::Mat &imRGB,const cv::Mat &imD, const double &timestamp);
-    cv::Mat GrabImageMonocular( const cv::Mat &im, 
+    cv::Mat GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp, const bool bSemanticOnline);
+    cv::Mat GrabImageMonocular( const cv::Mat &im,
                                 const double &timestamp,
                                 const bool bSemanticOnline);
 
@@ -81,7 +85,7 @@ public:
     // Use this function if you have deactivated local mapping and you only want to localize the camera.
     void InformOnlyTracking(const bool &flag);
 
-    // [EAO] associate objects with points.
+    // ] associate objects with points.
     void AssociateObjAndPoints(vector<Object_2D *> objs_2d);
 
     // [EAO] associate objects with lines.
@@ -97,13 +101,13 @@ public:
     void SampleObjYaw(Object_Map* objMap);
 
     // [EAO] project quadrics to the image.
-    cv::Mat DrawQuadricProject( cv::Mat &im, 
-                                const cv::Mat &P, 
-                                const cv::Mat &axe, 
-                                const cv::Mat &Twq, 
+    cv::Mat DrawQuadricProject( cv::Mat &im,
+                                const cv::Mat &P,
+                                const cv::Mat &axe,
+                                const cv::Mat &Twq,
                                 int nClassid,
-                                bool isGT=true, 
-                                int nLatitudeNum = 7, 
+                                bool isGT=true,
+                                int nLatitudeNum = 7,
                                 int nLongitudeNum = 6);
 
 public:
@@ -136,7 +140,7 @@ public:
     std::vector<cv::Point2f> mvbPrevMatched;
     std::vector<cv::Point3f> mvIniP3D;
     Frame mInitialFrame;
-    Frame mInitialSecendFrame;          // the second frame when initialization.
+    Frame mInitialSecendFrame;          // [EAO-SLAM] the second frame when initialization.
 
     // Lists used to recover the full camera trajectory at the end of the execution.
     // Basically we store the reference keyframe for each frame and its relative transformation
@@ -151,7 +155,7 @@ public:
     void Reset();
 
     // object detection.
-    bool finish_detected;       
+    bool finish_detected;
     std::vector<BoxSE> boxes_tracker;
     bool have_detected;
 
@@ -160,6 +164,12 @@ public:
 
     bool mbObjectIni = false;          // initialize the object map.
     int mnObjectIniFrameID;
+    int mflag2 = 0;
+
+    std::shared_ptr<YOLOX> yolox_ptr_; // yolox ptr
+    // 0: no constraint; 1: use ground truth; 2: use imu
+    int miConstraintType = 0;
+    bool mbSemanticOnline;
 
 protected:
 
@@ -199,7 +209,7 @@ protected:
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
-	
+
 	ProbabilityMapping* mpSemiDenseMapping;
 
     //ORB
@@ -220,10 +230,10 @@ protected:
     KeyFrame* mpReferenceKF;
     std::vector<KeyFrame*> mvpLocalKeyFrames;
     std::vector<MapPoint*> mvpLocalMapPoints;
-    
+
     // System
     System* mpSystem;
-    
+
     //Drawers
     Viewer* mpViewer;
     FrameDrawer* mpFrameDrawer;

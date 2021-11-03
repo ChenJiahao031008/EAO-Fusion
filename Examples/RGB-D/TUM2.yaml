@@ -4,7 +4,7 @@
 # Camera Parameters. Adjust them!
 #--------------------------------------------------------------------------------------------
 
-# Camera calibration and distortion parameters (OpenCV) 
+# Camera calibration and distortion parameters (OpenCV)
 Camera.fx: 520.908620
 Camera.fy: 521.007327
 Camera.cx: 325.141442
@@ -19,7 +19,7 @@ Camera.k3: 0.917205
 Camera.width: 640
 Camera.height: 480
 
-# Camera frames per second 
+# Camera frames per second
 Camera.fps: 30.0
 
 # IR projector baseline times fx (aprox.)
@@ -31,8 +31,11 @@ Camera.RGB: 1
 # Close/Far threshold. Baseline times.
 ThDepth: 50.0
 
-# Deptmap values factor 
+# Deptmap values factor
 DepthMapFactor: 5208.0
+
+# 0: no constraint; 1: use ground truth; 2: use imu
+ConstraintType: 1
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters
@@ -41,16 +44,16 @@ DepthMapFactor: 5208.0
 # ORB Extractor: Number of features per image
 ORBextractor.nFeatures: 1000
 
-# ORB Extractor: Scale factor between levels in the scale pyramid 	
+# ORB Extractor: Scale factor between levels in the scale pyramid
 ORBextractor.scaleFactor: 1.2
 
-# ORB Extractor: Number of levels in the scale pyramid	
+# ORB Extractor: Number of levels in the scale pyramid
 ORBextractor.nLevels: 8
 
 # ORB Extractor: Fast threshold
 # Image is divided in a grid. At each cell FAST are extracted imposing a minimum response.
 # Firstly we impose iniThFAST. If no corners are detected we impose a lower value minThFAST
-# You can lower these values if your images have low contrast			
+# You can lower these values if your images have low contrast
 ORBextractor.iniThFAST: 20
 ORBextractor.minThFAST: 7
 

@@ -41,7 +41,7 @@ echo "Configuring and building ORB_SLAM2 ..."
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
-make -j 2
+make -j10
 
 # cd ..
 # echo "Converting vocabulary to binary"
