@@ -1,3 +1,11 @@
+/*
+ * @Author: Chen Jiahao
+ * @Date: 2021-10-29 10:08:18
+ * @LastEditors: Chen Jiahao
+ * @LastEditTime: 2021-10-29 10:20:00
+ * @Description: file content
+ * @FilePath: /catkin_ws/src/EAO-SLAM/include/ORBVocabulary.h
+ */
 /**
 * This file is part of ORB-SLAM2.
 *
@@ -22,8 +30,8 @@
 #ifndef ORBVOCABULARY_H
 #define ORBVOCABULARY_H
 
-#include"Thirdparty/DBoW2/DBoW2/FORB.h"
-#include"Thirdparty/DBoW2/DBoW2/TemplatedVocabulary.h"
+#include"FORB.h"
+#include"TemplatedVocabulary.h"
 
 namespace ORB_SLAM2
 {

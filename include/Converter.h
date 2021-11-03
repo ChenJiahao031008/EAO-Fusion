@@ -1,8 +1,16 @@
+/*
+ * @Author: Chen Jiahao
+ * @Date: 2021-10-29 10:08:18
+ * @LastEditors: Chen Jiahao
+ * @LastEditTime: 2021-10-29 10:34:01
+ * @Description: file content
+ * @FilePath: /catkin_ws/src/EAO-SLAM/include/Converter.h
+ */
 /**
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 05/21/2019
@@ -20,8 +28,8 @@
 #include "opencv2/imgproc/imgproc.hpp"
 
 #include<Eigen/Dense>
-#include"Thirdparty/g2o/g2o/types/types_six_dof_expmap.h"
-#include"Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
+#include "types/types_six_dof_expmap.h"
+#include "types/types_seven_dof_expmap.h"
 
 namespace ORB_SLAM2
 {

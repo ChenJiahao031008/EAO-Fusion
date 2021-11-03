@@ -65,7 +65,7 @@ public:
 
     // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
     System( const string &strVocFile, const string &strSettingsFile, const string &flag,
-            const eSensor sensor, const bool bUseViewer = true);
+            const eSensor sensor, const bool bUseViewer = true, const bool SemanticOnline = false);
 
     // Proccess the given stereo frame. Images must be synchronized and rectified.
     // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
@@ -170,6 +170,7 @@ private:
     bool mbDeactivateLocalizationMode;
 
     bool bSemanticOnline;    // yolo whether online.
+    std::mutex mMutexState;
 };
 
 }// namespace ORB_SLAM

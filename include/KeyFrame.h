@@ -23,8 +23,8 @@
 
 #include "MapPoint.h"
 #include "ProbabilityMapping.h"
-#include "Thirdparty/DBoW2/DBoW2/BowVector.h"
-#include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
+#include "BowVector.h"
+#include "FeatureVector.h"
 #include "ORBVocabulary.h"
 #include "ORBextractor.h"
 #include "Frame.h"
@@ -175,7 +175,7 @@ public:
     EdgeMap* mEdgeMap;
 
 /******************************************/
-    
+
     std::vector<Object_2D*> objects_kf;     // 2d objects.
 
     bool mbCreatedByObjs = false;           // keyframe created by keyframe.

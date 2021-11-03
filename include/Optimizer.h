@@ -1,3 +1,11 @@
+/*
+ * @Author: Chen Jiahao
+ * @Date: 2021-10-29 10:08:18
+ * @LastEditors: Chen Jiahao
+ * @LastEditTime: 2021-10-29 10:35:12
+ * @Description: file content
+ * @FilePath: /catkin_ws/src/EAO-SLAM/include/Optimizer.h
+ */
 /**
 * This file is part of ORB-SLAM2.
 *
@@ -27,7 +35,7 @@
 #include "LoopClosing.h"
 #include "Frame.h"
 
-#include "Thirdparty/g2o/g2o/types/types_seven_dof_expmap.h"
+#include "types/types_seven_dof_expmap.h"
 #include <mutex>
 
 namespace ORB_SLAM2

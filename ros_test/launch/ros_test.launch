@@ -1,0 +1,10 @@
+<launch>
+    <node pkg="ros_evo"  type="ros_node"  name="ros_node"  output="screen">
+        <!-- <param name="sensor" value="MONO"/> -->
+        <param name="sensor" value="RGBD"/>
+        <param name="online" value="true" type="bool"/>
+    </node>
+
+    <include file="$(find realsense2_camera)/launch/rs_aligned_depth.launch"/>
+
+</launch>

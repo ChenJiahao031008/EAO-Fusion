@@ -38,13 +38,13 @@ using namespace Eigen;
 namespace ORB_SLAM2
 {
 
-System::System(const string &strVocFile, const string &strSettingsFile, 
+System::System(const string &strVocFile, const string &strSettingsFile,
                const string &flag, const eSensor sensor,
-               const bool bUseViewer):  mSensor(sensor),
+               const bool bUseViewer, const bool SemanticOnline):  mSensor(sensor),
                                         mbReset(false),
                                         mbActivateLocalizationMode(false),
                                         mbDeactivateLocalizationMode(false),
-                                        bSemanticOnline(false)  // [EAO] online/offline yolo detection.
+                                        bSemanticOnline(SemanticOnline)  // [EAO] online/offline yolo detection.
 {
     // Output welcome message
     cout << endl <<
@@ -109,7 +109,7 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     //Initialize the Tracking thread
     //(it will live in the main thread of execution, the one that called this constructor)
     mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
-                             mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor, flag);
+                             mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor, flag, bSemanticOnline);
 
     //Initialize the Local Mapping thread and launch
     mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR, flag);
@@ -159,7 +159,7 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
     {
         cerr << "ERROR: you called TrackStereo but input sensor was not set to STEREO." << endl;
         exit(-1);
-    }   
+    }
 
     // Check mode change
     {
@@ -204,8 +204,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     {
         cerr << "ERROR: you called TrackRGBD but input sensor was not set to RGBD." << endl;
         exit(-1);
-    }    
-
+    }
     // Check mode change
     {
         unique_lock<mutex> lock(mMutexMode);
@@ -240,7 +239,12 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     }
     }
 
-    return mpTracker->GrabImageRGBD(im,depthmap,timestamp);
+    // wait for semi dense thread
+    {
+        unique_lock<mutex> lock(mpSemiDenseMapping->mMutexSemiDense);
+    }
+
+    return mpTracker->GrabImageRGBD(im, depthmap, timestamp, bSemanticOnline);
 }
 
 cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
@@ -290,6 +294,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
         unique_lock<mutex> lock(mpSemiDenseMapping->mMutexSemiDense);
     }
 
+
     return mpTracker->GrabImageMonocular(im, timestamp, bSemanticOnline);
 }
 
@@ -319,12 +324,15 @@ void System::Shutdown()
     mpSemiDenseMapping->RequestFinish();
 
     // Wait until all thread have effectively stopped
-    while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished()  ||
-          !mpViewer->isFinished()      || mpLoopCloser->isRunningGBA() || !mpSemiDenseMapping->isFinished())
+    while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished()  || mpLoopCloser->isRunningGBA() || !mpSemiDenseMapping->isFinished())
     {
         usleep(5000);
     }
-
+    mpViewer->RequestFinish();
+    while (!mpViewer->isFinished())
+    {
+        usleep(5000);
+    }
     pangolin::BindToContext("ORB-SLAM2: Map Viewer");
 }
 

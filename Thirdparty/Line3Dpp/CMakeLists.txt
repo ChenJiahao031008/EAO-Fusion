@@ -54,8 +54,8 @@ set (EXTRA_INC_DIRS
 
 ##-----------------------------------------------------------------------------
 ## CUDA
-#FIND_PACKAGE(CUDA)
-SET(CUDA_FOUND FALSE)
+FIND_PACKAGE(CUDA)
+SET(CUDA_FOUND TRUE)
   IF(CUDA_FOUND)
     set (EXTRA_INC_DIRS
         ${EXTRA_INC_DIRS}
@@ -78,7 +78,7 @@ SET(BOOST_LIBRARYDIR "${BOOST_LIBRARY_DIR}")
 SET(BOOST_INCLUDEDIR "${BOOST_INCLUDE_DIR}")
 
 if ("${BOOST_LIBRARY_DIR}" STREQUAL "" OR "${BOOST_INCLUDE_DIR}" STREQUAL "")
-  message("BOOST library dir not set... trying to find it...")  
+  message("BOOST library dir not set... trying to find it...")
 endif ("${BOOST_LIBRARY_DIR}" STREQUAL "" OR "${BOOST_INCLUDE_DIR}" STREQUAL "")
 
 IF( WIN32 )
@@ -116,7 +116,7 @@ if(NOT Ceres_FOUND AND WIN32)
   # set ceres lib and include dir manually
   set(CERES_LIBRARY "" CACHE FILEPATH "path to the ceres.lib")
   set(CERES_ROOT "" CACHE PATH "path to the ceres include dir")
-  
+
   if (NOT "${CERES_LIBRARY}" STREQUAL "" AND NOT "${CERES_ROOT}" STREQUAL "")
      set(EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${CERES_LIBRARY})
      include_directories(${CERES_ROOT})
@@ -126,34 +126,34 @@ if(NOT Ceres_FOUND AND WIN32)
 
   # only 64bit CERES is included
   if( "${CERES_LIBRARY}" STREQUAL "" AND CMAKE_SIZEOF_VOID_P EQUAL 8 )
-  
+
       message("using precompiled ceres.... (WIN64 only)")
-      
+
       # set glog lib and include dir
       set(GLOG_LIBRARY "" CACHE FILEPATH "path to the glog.lib")
       set(GLOG_ROOT "" CACHE PATH "path to the glog build dir")
-    
+
       if (NOT "${GLOG_LIBRARY}" STREQUAL "" AND NOT "${GLOG_ROOT}" STREQUAL "")
          set(EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${GLOG_LIBRARY})
          include_directories(${GLOG_ROOT})
          message("glog build dir: " ${GLOG_ROOT})
          message("glog_lib:       " ${GLOG_LIBRARY})
       endif (NOT "${GLOG_LIBRARY}" STREQUAL "" AND NOT "${GLOG_ROOT}" STREQUAL "")
-    
+
       # set gflags lib and include dir
       set(GFLAGS_LIBRARY "" CACHE FILEPATH "path to the gflags_*.lib")
       set(GFLAGS_ROOT "" CACHE PATH "path to the gflags include dir")
-      
+
       if (NOT "${GFLAGS_LIBRARY}" STREQUAL "" AND NOT "${GFLAGS_ROOT}" STREQUAL "")
          set(EXTRA_LIBRARIES ${EXTRA_LIBRARIES} ${GFLAGS_LIBRARY})
          include_directories(${GFLAGS_ROOT})
          message("gflags build dir: " ${GFLAGS_ROOT})
          message("gflags_lib:       " ${GFLAGS_LIBRARY})
       endif (NOT "${GFLAGS_LIBRARY}" STREQUAL "" AND NOT "${GFLAGS_ROOT}" STREQUAL "")
-      
+
     # use precompiled CERES version
     set(PRECOMPILED_DIR ${CMAKE_SOURCE_DIR}/libs/precompiled)
-    
+
     set(PRECOMPILED_LIB lib64)
     set(PRECOMPILED_LIB_DIR_FILTER bin64/ )
     #deep_copy_file(${PRECOMPILED_DIR} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE} dll ${PRECOMPILED_LIB_DIR_FILTER} release)
@@ -170,9 +170,9 @@ if(NOT Ceres_FOUND AND WIN32)
       set(Ceres_FOUND 1)
     endif(CERES_LIBDIR AND CERES_INCLUDE_DIR)
   elseif( "${CERES_LIBRARY}" STREQUAL "" AND CMAKE_SIZEOF_VOID_P EQUAL 8 )
-    message("Sorry... precompiled ceres only functioning with 64 bit!")  
+    message("Sorry... precompiled ceres only functioning with 64 bit!")
   endif( "${CERES_LIBRARY}" STREQUAL "" AND CMAKE_SIZEOF_VOID_P EQUAL 8 )
-		   
+
 endif(NOT Ceres_FOUND AND WIN32)
 
 ##-----------------------------------------------------------------------------

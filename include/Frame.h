@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 05/21/2019
@@ -16,8 +16,8 @@
 #include<vector>
 
 #include "MapPoint.h"
-#include "Thirdparty/DBoW2/DBoW2/BowVector.h"
-#include "Thirdparty/DBoW2/DBoW2/FeatureVector.h"
+#include "BowVector.h"
+#include "FeatureVector.h"
 #include "ORBVocabulary.h"
 #include "KeyFrame.h"
 #include "ORBextractor.h"
@@ -61,9 +61,9 @@ class Object_2D;
 // // for optimization, not used in this version.
 // struct PairObjs
 // {
-//     Vector6d mvLineWithMappoint;     
+//     Vector6d mvLineWithMappoint;
 //     Vector6d mvLineWithMapObjsCenter;
-//     Vector4d mvLineWithFeature;      
+//     Vector4d mvLineWithFeature;
 //     int mWeightTwo;
 // };
 
@@ -74,10 +74,10 @@ class Object_2D;
 //     Vector2d mCenter2D;
 //     std::vector<Vector3d> mvSingleObjMapPointsPos;
 //     std::vector<Vector2d> mvSingleObjMapfearurePos;
-//     Vector6d mRect;                     
-//     Vector6d mDetectedRect;             
-//     int mWeightOne;                     
-//     Vector3d mAssMapObjCenter;          
+//     Vector6d mRect;
+//     Vector6d mDetectedRect;
+//     int mWeightOne;
+//     Vector3d mAssMapObjCenter;
 // };
 
 class Frame
@@ -92,21 +92,34 @@ public:
     Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
 
     // Constructor for RGB-D cameras.
-    Frame(const cv::Mat &imGray, const cv::Mat &imDepth, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
+    Frame(const cv::Mat &rawImage, // color image.
+          const cv::Mat &imGray,
+          const cv::Mat &imDepth,
+          const double &timeStamp,
+          ORBextractor *extractor,
+          line_lbd_detect *line_lbd_ptr_frame, // line detect.
+          ORBVocabulary *voc,
+          cv::Mat &K,
+          cv::Mat &distCoef,
+          const float &bf,
+          const float &thDepth,
+          cv::Mat &grayimg,
+          cv::Mat &rgbimg);
 
     // Constructor for Monocular cameras.
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
-    Frame(  const cv::Mat &imGray, 
-            const cv::Mat &rawImage,           
-            const double &timeStamp, 
+
+    Frame(  const cv::Mat &imGray,
+            const cv::Mat &rawImage,
+            const double &timeStamp,
             ORBextractor* extractor,
             line_lbd_detect* line_lbd_ptr_frame,
-            ORBVocabulary* voc, 
-            cv::Mat &K, 
-            cv::Mat &distCoef, 
-            const float &bf, 
-            const float &thDepth, 
-            cv::Mat& grayimg, 
+            ORBVocabulary* voc,
+            cv::Mat &K,
+            cv::Mat &distCoef,
+            const float &bf,
+            const float &thDepth,
+            cv::Mat& grayimg,
             cv::Mat& rgbimg);
 
     // Extract ORB on the image. 0 for left image and 1 for right image.
@@ -166,19 +179,19 @@ public:
     // NOTE [EAO-SLAM]
     cv::Mat mColorImage;
     cv::Mat mQuadricImage;
-    bool finish_detected;           // whether finished object detection.
+    bool finish_detected = false;           // whether finished object detection.
     std::vector<BoxSE> boxes;       // object box, vector<BoxSE> format.
     Eigen::MatrixXd boxes_eigen;    // object box, Eigen::MatrixXd format.
-    bool have_detected;             // whether detected objects in current frame.
+    bool have_detected = false;             // whether detected objects in current frame.
 
     // // for optimization.
     // typedef Eigen::Matrix<double,5,1> Vector5d;
     // typedef Eigen::Matrix<double,6,1> Vector6d;
     // std::vector<Vector6d> LineFrameToFrameWithMappoint;
     // std::vector<Vector5d> LineFrameToFrameWithFeature;
-    // std::vector<PairObjs> mvPairObjs;    
+    // std::vector<PairObjs> mvPairObjs;
     // std::vector<SingleObj> mvSingleObj;
-    
+
     // Calibration matrix and OpenCV distortion parameters.
     cv::Mat mK;
     static float fx;

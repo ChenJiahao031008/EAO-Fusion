@@ -19,14 +19,17 @@
 */
 
 
-#include<iostream>
-#include<algorithm>
-#include<fstream>
-#include<chrono>
+#include <iostream>
+#include <algorithm>
+#include <fstream>
+#include <chrono>
+#include <opencv2/core/core.hpp>
+#include <System.h>
+#include <stdio.h>
+#include <unistd.h>
+#include "Global.h"
 
-#include<opencv2/core/core.hpp>
-
-#include<System.h>
+std::string WORK_SPACE_PATH = "";
 
 using namespace std;
 
@@ -35,17 +38,29 @@ void LoadImages(const string &strAssociationFilename, vector<string> &vstrImageF
 
 int main(int argc, char **argv)
 {
-    if(argc != 5)
+    if(argc != 4)
     {
         cerr << endl << "Usage: ./rgbd_tum path_to_vocabulary path_to_settings path_to_sequence path_to_association" << endl;
         return 1;
+    }
+
+    char *buffer;
+    if ((buffer = getcwd(NULL, 0)) == NULL)
+    {
+        std::cerr << "[ERROR] Get CWD Error." << std::endl;
+        return 1;
+    }
+    else
+    {
+        WORK_SPACE_PATH = buffer;
+        std::cout << "[INFO] Current Working Directory is: " << WORK_SPACE_PATH << std::endl;
     }
 
     // Retrieve paths to images
     vector<string> vstrImageFilenamesRGB;
     vector<string> vstrImageFilenamesD;
     vector<double> vTimestamps;
-    string strAssociationFilename = string(argv[4]);
+    string strAssociationFilename = string(argv[3]);
     LoadImages(strAssociationFilename, vstrImageFilenamesRGB, vstrImageFilenamesD, vTimestamps);
 
     // Check consistency in the number of images and depthmaps
@@ -61,8 +76,11 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    string VocFile  = "Vocabulary/ORBvoc.bin";
+    string YamlFile = "Examples/RGB-D/TUM3.yaml";
+
     // Create SLAM system. It initializes all system threads and gets ready to process frames.
-    ORB_SLAM2::System SLAM(argv[1],argv[2],ORB_SLAM2::System::RGBD,true);
+    ORB_SLAM2::System SLAM(VocFile, YamlFile, argv[1], ORB_SLAM2::System::RGBD, true, true);
 
     // Vector for tracking time statistics
     vector<float> vTimesTrack;
@@ -77,35 +95,30 @@ int main(int argc, char **argv)
     for(int ni=0; ni<nImages; ni++)
     {
         // Read image and depthmap from file
-        imRGB = cv::imread(string(argv[3])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_UNCHANGED);
-        imD = cv::imread(string(argv[3])+"/"+vstrImageFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
+        imRGB = cv::imread(string(argv[2])+"/"+vstrImageFilenamesRGB[ni],CV_LOAD_IMAGE_UNCHANGED);
+        imD = cv::imread(string(argv[2])+"/"+vstrImageFilenamesD[ni],CV_LOAD_IMAGE_UNCHANGED);
         double tframe = vTimestamps[ni];
+
+        // std::cout << string(argv[2]) + "/" + vstrImageFilenamesRGB[ni] << std::endl;
+        // std::cout << string(argv[2]) + "/" + vstrImageFilenamesD[ni] << std::endl;
 
         if(imRGB.empty())
         {
             cerr << endl << "Failed to load image at: "
-                 << string(argv[3]) << "/" << vstrImageFilenamesRGB[ni] << endl;
+                 << string(argv[2]) << "/" << vstrImageFilenamesRGB[ni] << endl;
             return 1;
         }
 
-#ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
-#else
-        std::chrono::monotonic_clock::time_point t1 = std::chrono::monotonic_clock::now();
-#endif
 
         // Pass the image to the SLAM system
         SLAM.TrackRGBD(imRGB,imD,tframe);
 
-#ifdef COMPILEDWITHC11
         std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-#else
-        std::chrono::monotonic_clock::time_point t2 = std::chrono::monotonic_clock::now();
-#endif
 
         double ttrack= std::chrono::duration_cast<std::chrono::duration<double> >(t2 - t1).count();
 
-        vTimesTrack[ni]=ttrack;
+        vTimesTrack[ni] = ttrack;
 
         // Wait to load the next frame
         double T=0;

@@ -255,9 +255,9 @@ void ProbabilityMapping::Run()
 
     SaveSemiDensePoints();
 
-    // 
+    //
     mLineDetector.RunLine3Dpp(vpKFs);
-    // 
+    //
     mLineDetector.LineFittingEDLinesOffline(vpKFs);
 
 #ifndef OnlineLoop
@@ -296,7 +296,8 @@ void ProbabilityMapping::Run()
 
     mLineDetector.Summary();
 
-    mbFinished = true;
+    SetFinish();
+    return;
 }
 
 /*

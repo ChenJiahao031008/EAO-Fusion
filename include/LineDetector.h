@@ -15,11 +15,11 @@
 
 #include "opencv2/core/core.hpp"
 
-#include "Thirdparty/EDLines/LS.h"
+#include "LS.h"
 
 // Edge Drawing header
-#include "Thirdparty/EDTest/EdgeMap.h"
-#include "Thirdparty/EDTest/EDLib.h"
+#include "EdgeMap.h"
+#include "EDLib.h"
 #include "line3D.h"
 
 
