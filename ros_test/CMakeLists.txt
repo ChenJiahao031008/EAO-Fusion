@@ -19,22 +19,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3 -march=native  -Wno-unused-f
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__STDC_CONSTANT_MACROS -DGL_GLEXT_PROTOTYPES -D_LINUX -D_REENTRANT -DCGAL_USE_F2C -DCGAL_DISABLE_ROUNDING_MATH_CHECK")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D__STDC_CONSTANT_MACROS -DGL_GLEXT_PROTOTYPES -D_LINUX -D_REENTRANT -DCGAL_USE_F2C -DCGAL_DISABLE_ROUNDING_MATH_CHECK")
 
-# Check C++11 or C++0x support
-# include(CheckCXXCompilerFlag)
-# CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
-# CHECK_CXX_COMPILER_FLAG("-std=c++0x" COMPILER_SUPPORTS_CXX0X)
-# if(COMPILER_SUPPORTS_CXX11)
-#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-#    add_definitions(-DCOMPILEDWITHC11)
-#    message(STATUS "Using flag -std=c++11.")
-# elseif(COMPILER_SUPPORTS_CXX0X)
-#    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-#    add_definitions(-DCOMPILEDWITHC0X)
-#    message(STATUS "Using flag -std=c++0x.")
-# else()
-#    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
-# endif()
-
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/../cmake_modules)
 
 find_package(OpenCV 3.0 QUIET)
@@ -47,7 +31,8 @@ endif()
 message(STATUS "Using opencv version ${OpenCV_VERSION}")
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
-
+# glog
+include(../cmake_modules/glog.cmake)
 # find openmp
 find_package(OpenMP)
 if (OPENMP_FOUND)
@@ -104,25 +89,18 @@ find_package(
 )
 
 
-generate_messages(
-   DEPENDENCIES
-   std_msgs
-)
-
-# catkin_package(
-#     INCLUDE_DIRS include
-#     LIBRARIES ${PROJECT_NAME}
-#     CATKIN_DEPENDS
-#     bzrobot_msgs
-#     roscpp
-#     roslib #添加这行
-#     std_msgs
-#     DEPENDS
+# generate_messages(
+#    DEPENDENCIES
+#    std_msgs
 # )
+
+catkin_package(
+)
 
 include_directories(
     include ${catkin_INCLUDE_DIRS}
     ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/../include
     ${EIGEN3_INCLUDE_DIR}
     ${Pangolin_INCLUDE_DIRS}
@@ -141,6 +119,10 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../lib)
 add_library(${PROJECT_NAME}_lib SHARED
     # yolox
     ../src/YOLOX.cc
+    # ros
+    src/message_flow.cc
+    src/imu_subscriber.cc
+    src/image_subscriber.cc
 
     ../src/System.cc
     ../src/Tracking.cc
@@ -212,7 +194,7 @@ target_link_libraries(${PROJECT_NAME}_lib
 )
 
 
-add_executable(ros_node src/ros_node.cpp)
+add_executable(ros_node app/ros_node.cpp)
 add_dependencies(ros_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(ros_node ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
 

@@ -420,7 +420,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
         }
         // 耗时计算
         auto end = std::chrono::system_clock::now();
-        std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+        // std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
 
         std::vector<BoxSE> boxes_online;
@@ -708,8 +708,8 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
             std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
         // 耗时计算
-        auto end = std::chrono::system_clock::now();
-        std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+        // auto end = std::chrono::system_clock::now();
+        // std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
         std::vector<BoxSE> boxes_online;
         for (auto &objInfo : currentObjs)
@@ -925,7 +925,7 @@ void Tracking::Track()
         mpFrameDrawer->Update(this);
         if (mState != OK)
             return;
-        mSensor = System::MONOCULAR;
+        // mSensor = System::MONOCULAR;
     }
     else
     {
@@ -1220,7 +1220,7 @@ void Tracking::StereoInitialization()
             Rinv.copyTo(GroundToInit.rowRange(0, 3).colRange(0, 3));
             Ow.copyTo(GroundToInit.rowRange(0, 3).col(3));
 
-            std::cout << GroundToInit << std::endl;
+            // std::cout << GroundToInit << std::endl;
 
             bool build_worldframe_on_ground = true;
             std::vector<MapPoint *> vpAllMapPoints = pKFcur->GetMapPointMatches();
@@ -1257,6 +1257,7 @@ void Tracking::StereoInitialization()
         mCurrentFrame.mpReferenceKF = pKFcur;
 
         mLastFrame = Frame(mCurrentFrame);
+        mLastFrame.SetPose(pKFcur->GetPose());
 
         mpMap->SetReferenceMapPoints(mvpLocalMapPoints);
         mpMap->mvpKeyFrameOrigins.push_back(pKFini);
@@ -1430,7 +1431,7 @@ void Tracking::CreateInitialMapMonocular()
         // only use the groundtruth of the first frame.
         // TODO: 替换这种方法
         cv::Mat InitToGround = mInitialFrame.mGroundtruthPose_mat;
-        std::cout << InitToGround << std::endl;
+        // std::cout << InitToGround << std::endl;
 
         // InitToGround = cv::Mat::eye(4, 4, CV_32F);
         cv::Mat R = InitToGround.rowRange(0, 3).colRange(0, 3);
@@ -1545,18 +1546,29 @@ bool Tracking::TrackReferenceKeyFrame()
 void Tracking::UpdateLastFrame()
 {
     // Update pose according to reference keyframe
+    // Step 1：利用参考关键帧更新上一帧在世界坐标系下的位姿
+    // 上一普通帧的参考关键帧，注意这里用的是参考关键帧（位姿准）而不是上上一帧的普通帧
     KeyFrame *pRef = mLastFrame.mpReferenceKF;
+    // ref_keyframe 到 lastframe的位姿变换
     cv::Mat Tlr = mlRelativeFramePoses.back();
 
+    // 将上一帧的世界坐标系下的位姿计算出来
+    // l:last, r:reference, w:world
+    // Tlw = Tlr*Trw
     mLastFrame.SetPose(Tlr * pRef->GetPose());
 
+    // 如果上一帧为关键帧，或者单目的情况，则退出
     if (mnLastKeyFrameId == mLastFrame.mnId || mSensor == System::MONOCULAR)
+        return;
+    if ( mSensor == System::RGBD)
         return;
 
     // Create "visual odometry" MapPoints
     // We sort points according to their measured depth by the stereo/RGB-D sensor
+    // 注意这些地图点只是用来跟踪，不加入到地图中，跟踪完后会删除
     vector<pair<float, int>> vDepthIdx;
     vDepthIdx.reserve(mLastFrame.N);
+    // Step 2.1：得到上一帧中具有有效深度值的特征点（不一定是地图点）
     for (int i = 0; i < mLastFrame.N; i++)
     {
         float z = mLastFrame.mvDepth[i];
@@ -1568,15 +1580,21 @@ void Tracking::UpdateLastFrame()
 
     if (vDepthIdx.empty())
         return;
+    // std::cout << "vDepthIdx.size() : " <<vDepthIdx.size() << std::endl;
 
     sort(vDepthIdx.begin(), vDepthIdx.end());
 
     // We insert all close points (depth<mThDepth)
     // If less than 100 close points, we insert the 100 closest ones.
+    // Step 2.2：从中找出不是地图点的部分
+    // 如果这个点对应在上一帧中的地图点没有,或者创建后就没有被观测到,那么就生成一个临时的地图点
     int nPoints = 0;
     for (size_t j = 0; j < vDepthIdx.size(); j++)
     {
+        std::cout << "j: "<< j  << std::endl;
+        std::cout << vDepthIdx.size() << std::endl;
         int i = vDepthIdx[j].second;
+        std::cout << "i: " << i << std::endl;
 
         bool bCreateNew = false;
 
@@ -1590,11 +1608,12 @@ void Tracking::UpdateLastFrame()
 
         if (bCreateNew)
         {
+            // Step 2.3：需要创建的点，包装为地图点。只是为了提高双目和RGBD的跟踪成功率，并没有添加复杂属性，因为后面会扔掉
             cv::Mat x3D = mLastFrame.UnprojectStereo(i);
+            if (x3D.empty()) continue;
             MapPoint *pNewMP = new MapPoint(x3D, mpMap, &mLastFrame, i);
-
             mLastFrame.mvpMapPoints[i] = pNewMP;
-
+            // 标记为临时添加的MapPoint，之后在CreateNewKeyFrame之前会全部删除
             mlpTemporalPoints.push_back(pNewMP);
             nPoints++;
         }
