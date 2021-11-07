@@ -555,52 +555,61 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     string timestamp_short_string = timestamp_string.substr(0, timestamp_string.length() - 4);
 
     Eigen::MatrixXd truth_frame_poses(1, 8); // camera pose Eigen format.
-    cv::Mat cam_pose_mat;                    // camera pose Mat format.
-
-    for (auto &row : mGroundtruth_mat)
-    {
-        string row_string = to_string(row[0]);
-        double delta_time = fabs(row[0] - timestamp);
-        // if (delta_time< 1)
-        //     std::cout << " [INFO] delta_time : " << delta_time << std::endl;
-        string row_short_string = row_string.substr(0, row_string.length() - 4);
-
-        if (row_short_string == timestamp_short_string)
-        // if (delta_time <= 0.05)
+    cv::Mat cam_pose_mat; // camera pose Mat format.
+    if (miConstraintType == 1){
+        for (auto &row : mGroundtruth_mat)
         {
-            // vector --> Eigen.
-            for (int i = 0; i < (int)row.size(); i++)
+            string row_string = to_string(row[0]);
+            double delta_time = fabs(row[0] - timestamp);
+            // if (delta_time< 1)
+            //     std::cout << " [INFO] delta_time : " << delta_time << std::endl;
+            string row_short_string = row_string.substr(0, row_string.length() - 4);
+
+            if (row_short_string == timestamp_short_string)
+            // if (delta_time <= 0.05)
             {
-                truth_frame_poses(0) = row[0];
-                truth_frame_poses(1) = row[1];
-                truth_frame_poses(2) = row[2];
-                truth_frame_poses(3) = row[3];
-                truth_frame_poses(4) = row[4];
-                truth_frame_poses(5) = row[5];
-                truth_frame_poses(6) = row[6];
-                truth_frame_poses(7) = row[7];
+                // vector --> Eigen.
+                for (int i = 0; i < (int)row.size(); i++)
+                {
+                    truth_frame_poses(0) = row[0];
+                    truth_frame_poses(1) = row[1];
+                    truth_frame_poses(2) = row[2];
+                    truth_frame_poses(3) = row[3];
+                    truth_frame_poses(4) = row[4];
+                    truth_frame_poses(5) = row[5];
+                    truth_frame_poses(6) = row[6];
+                    truth_frame_poses(7) = row[7];
+                }
+
+                // Eigen --> SE3.
+                g2o::SE3Quat cam_pose_se3(truth_frame_poses.row(0).tail<7>());
+                // std::cout << "cam_pose_se3\n" << cam_pose_se3 << std::endl;
+
+                // SE3 --> Mat.
+                cam_pose_mat = Converter::toCvMat(cam_pose_se3);
+
+                // save to current frame.
+                mCurrentFrame.mGroundtruthPose_mat = cam_pose_mat;
+                if (!mCurrentFrame.mGroundtruthPose_mat.empty())
+                {
+                    mCurrentFrame.mGroundtruthPose_eigen = Converter::toEigenMatrixXd(mCurrentFrame.mGroundtruthPose_mat);
+                }
+                break;
             }
-
-            // Eigen --> SE3.
-            g2o::SE3Quat cam_pose_se3(truth_frame_poses.row(0).tail<7>());
-            // std::cout << "cam_pose_se3\n" << cam_pose_se3 << std::endl;
-
-            // SE3 --> Mat.
-            cam_pose_mat = Converter::toCvMat(cam_pose_se3);
-
-            // save to current frame.
-            mCurrentFrame.mGroundtruthPose_mat = cam_pose_mat;
-            if (!mCurrentFrame.mGroundtruthPose_mat.empty())
+            else
             {
-                mCurrentFrame.mGroundtruthPose_eigen = Converter::toEigenMatrixXd(mCurrentFrame.mGroundtruthPose_mat);
+                mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
+                mCurrentFrame.mGroundtruthPose_eigen = Eigen::Matrix4d::Identity(4, 4);
             }
-            break;
         }
-        else
-        {
-            mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
-            mCurrentFrame.mGroundtruthPose_eigen = Eigen::Matrix4d::Identity(4, 4);
-        }
+    }else if (miConstraintType ==2){
+        mCurrentFrame.mGroundtruthPose_eigen = INIT_POSE;
+        // mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
+        cv::Mat cv_mat_32f;
+        cv::eigen2cv(mCurrentFrame.mGroundtruthPose_eigen, cv_mat_32f);
+        cv_mat_32f.convertTo(mCurrentFrame.mGroundtruthPose_mat, CV_32F);
+    }else{
+        mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
     }
     // get the camera groundtruth by timestamp. ----------------------------------------------------------------------
     Track();
@@ -853,46 +862,60 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
     Eigen::MatrixXd truth_frame_poses(1, 8); // camera pose Eigen format.
     cv::Mat cam_pose_mat;                    // camera pose Mat format.
 
-    for (auto &row : mGroundtruth_mat)
-    {
-        string row_string = to_string(row[0]);
-        string row_short_string = row_string.substr(0, row_string.length() - 4);
-
-        if (row_short_string == timestamp_short_string)
+    if (miConstraintType == 1){
+        for (auto &row : mGroundtruth_mat)
         {
-            // vector --> Eigen.
-            for (int i = 0; i < (int)row.size(); i++)
+            string row_string = to_string(row[0]);
+            double delta_time = fabs(row[0] - timestamp);
+            // if (delta_time< 1)
+            //     std::cout << " [INFO] delta_time : " << delta_time << std::endl;
+            string row_short_string = row_string.substr(0, row_string.length() - 4);
+
+            if (row_short_string == timestamp_short_string)
+            // if (delta_time <= 0.05)
             {
-                truth_frame_poses(0) = row[0];
-                truth_frame_poses(1) = row[1];
-                truth_frame_poses(2) = row[2];
-                truth_frame_poses(3) = row[3];
-                truth_frame_poses(4) = row[4];
-                truth_frame_poses(5) = row[5];
-                truth_frame_poses(6) = row[6];
-                truth_frame_poses(7) = row[7];
+                // vector --> Eigen.
+                for (int i = 0; i < (int)row.size(); i++)
+                {
+                    truth_frame_poses(0) = row[0];
+                    truth_frame_poses(1) = row[1];
+                    truth_frame_poses(2) = row[2];
+                    truth_frame_poses(3) = row[3];
+                    truth_frame_poses(4) = row[4];
+                    truth_frame_poses(5) = row[5];
+                    truth_frame_poses(6) = row[6];
+                    truth_frame_poses(7) = row[7];
+                }
+
+                // Eigen --> SE3.
+                g2o::SE3Quat cam_pose_se3(truth_frame_poses.row(0).tail<7>());
+                // std::cout << "cam_pose_se3\n" << cam_pose_se3 << std::endl;
+
+                // SE3 --> Mat.
+                cam_pose_mat = Converter::toCvMat(cam_pose_se3);
+
+                // save to current frame.
+                mCurrentFrame.mGroundtruthPose_mat = cam_pose_mat;
+                if (!mCurrentFrame.mGroundtruthPose_mat.empty())
+                {
+                    mCurrentFrame.mGroundtruthPose_eigen = Converter::toEigenMatrixXd(mCurrentFrame.mGroundtruthPose_mat);
+                }
+                break;
             }
-
-            // Eigen --> SE3.
-            g2o::SE3Quat cam_pose_se3(truth_frame_poses.row(0).tail<7>());
-            // std::cout << "cam_pose_se3\n" << cam_pose_se3 << std::endl;
-
-            // SE3 --> Mat.
-            cam_pose_mat = Converter::toCvMat(cam_pose_se3);
-
-            // save to current frame.
-            mCurrentFrame.mGroundtruthPose_mat = cam_pose_mat;
-            if (!mCurrentFrame.mGroundtruthPose_mat.empty())
+            else
             {
-                mCurrentFrame.mGroundtruthPose_eigen = Converter::toEigenMatrixXd(mCurrentFrame.mGroundtruthPose_mat);
+                mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
+                mCurrentFrame.mGroundtruthPose_eigen = Eigen::Matrix4d::Identity(4, 4);
             }
-            break;
         }
-        else
-        {
-            mCurrentFrame.mGroundtruthPose_mat = cv::Mat::ones(4, 4, CV_32F);
-            mCurrentFrame.mGroundtruthPose_eigen = Eigen::Matrix4d::Zero(4, 4);
-        }
+    }else if (miConstraintType == 2){
+        mCurrentFrame.mGroundtruthPose_eigen = INIT_POSE;
+        // mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
+        cv::Mat cv_mat_32f;
+        cv::eigen2cv(mCurrentFrame.mGroundtruthPose_eigen, cv_mat_32f);
+        cv_mat_32f.convertTo(mCurrentFrame.mGroundtruthPose_mat, CV_32F);
+    }else{
+        mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
     }
     // get the camera groundtruth by timestamp. ----------------------------------------------------------------------
 

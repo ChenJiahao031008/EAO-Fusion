@@ -30,7 +30,7 @@ ThDepth: 50.0
 DepthMapFactor: 1000.0
 
 # 0: no constraint; 1: use ground truth; 2: use imu
-ConstraintType: 1
+ConstraintType: 0
 
 #--------------------------------------------------------------------------------------------
 # ORB Parameters

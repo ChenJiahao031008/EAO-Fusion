@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 14:29:27
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-11-05 20:02:24
+ * @LastEditTime: 2021-11-07 16:55:07
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/message_flow.h
  */
@@ -23,6 +23,7 @@
 #include <ros/package.h>
 #include <opencv2/core/core.hpp>
 #include <System.h>
+#include <Eigen/Dense>
 
 #include "Global.h"
 #include "glog/logging.h"
@@ -47,15 +48,22 @@ public:
     std::shared_ptr<ORB_SLAM2::System> slam_ptr_;
 
 private:
+    // 判断是否在线的标志
     bool semanticOnline;
+    bool initIMUFlag;
+    // 判断传感器类型的标志
     std::string sensor;
-
-    std::deque<sensor_msgs::Imu> imu_data_buff_;
+    // 与图像进行同步的IMU数据缓存队列
+    std::deque<sensor_msgs::Imu> synced_imu_data_buff_;
+    // 原始的IMU数据缓存队列
     std::deque<sensor_msgs::Imu> unsynced_imu_data_buff_;
+
     std::deque<sensor_msgs::Image> image_color_data_buff_;
     std::deque<sensor_msgs::Image> image_depth_data_buff_;
 
-    sensor_msgs::Imu current_imu_data_;
+    std::deque<sensor_msgs::Imu> unsynced_imu_data_;
+
+    sensor_msgs::Imu synced_imu_data_;
     sensor_msgs::Image current_image_color_data_;
     sensor_msgs::Image current_image_depth_data_;
     cv::Mat cvColorImgMat, cvDepthMat;
@@ -63,15 +71,24 @@ private:
 
 public:
     MessageFlow(ros::NodeHandle &nh);
+
     ~MessageFlow();
 
     void Run();
+
     bool ReadData();
+
     bool HasData();
+
     bool ValidData();
 
-    bool IMUSyncData(std::deque<sensor_msgs::Imu> &UnsyncedData, std::deque<sensor_msgs::Imu> &SyncedData, ros::Time sync_time);
+    bool InitIMU();
 
+    bool IMUSyncData(
+        std::deque<sensor_msgs::Imu> &UnsyncedDataBuff,
+        std::deque<sensor_msgs::Imu> &UnsyncedData,
+        std::deque<sensor_msgs::Imu> &SyncedData,
+        ros::Time sync_time);
 };
 
 #endif
