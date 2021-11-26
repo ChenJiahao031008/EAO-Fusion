@@ -365,10 +365,13 @@ void YOLOX::DoInference(IExecutionContext &context, float *input, float *output,
     CHECK(cudaFree(buffers[outputIndex]));
 }
 
-void YOLOX::Detect(cv::Mat &image, std::vector<Object> &objects)
+void YOLOX::Detect()
 {
-    objects.clear();
-    frame = image.clone();
+    // objects.clear();
+
+    frame = IMGQueue.front();
+    IMGQueue.pop_front();
+    std::vector<Object> objects;
 
     if (frame.empty())
     {
@@ -394,5 +397,84 @@ void YOLOX::Detect(cv::Mat &image, std::vector<Object> &objects)
     DecodeOutputs(prob, objects, scale, img_w, img_h);
     // DrawObjects(frame, objects);
     delete[] blob;
+
+    ResQueue.push_back(objects);
 }
+
+void YOLOX::GetResult(std::vector<Object> &output)
+{
+    unique_lock<mutex> lock(mMutexResQueue);
+    output = ResQueue.front();
+    ResQueue.pop_front();
+}
+
+void YOLOX::Run()
+{
+    mbFinished = false;
+
+    while (1)
+    {
+        // Check if there are keyframes in the queue
+        if (CheckFrames())
+        {
+            Detect();
+        }
+
+        if (CheckFinish())
+            break;
+
+        usleep(5000);
+    }
+
+    SetFinish();
+}
+
+void YOLOX::SetTracker(Tracking *pTracker)
+{
+    mpTracker = pTracker;
+}
+
+bool YOLOX::CheckFrames()
+{
+    unique_lock<mutex> lock(mMutexYOLOXQueue);
+    return (!IMGQueue.empty());
+}
+
+bool YOLOX::CheckResult()
+{
+    unique_lock<mutex> lock(mMutexResQueue);
+    return (!ResQueue.empty());
+}
+
+void YOLOX::InsertImage(cv::Mat rgb)
+{
+    unique_lock<mutex> lock(mMutexYOLOXQueue);
+    IMGQueue.push_back(rgb);
+}
+
+void YOLOX::RequestFinish()
+{
+    unique_lock<mutex> lock(mMutexFinish);
+    mbFinishRequested = true;
+}
+
+bool YOLOX::CheckFinish()
+{
+    unique_lock<mutex> lock(mMutexFinish);
+    return mbFinishRequested;
+}
+
+void YOLOX::SetFinish()
+{
+    unique_lock<mutex> lock(mMutexFinish);
+    mbFinished = true;
+}
+
+bool YOLOX::isFinished()
+{
+    unique_lock<mutex> lock(mMutexFinish);
+    return mbFinished;
+}
+
+
 }

@@ -130,9 +130,10 @@ void Object_2D::RemoveOutliersByBoxPlot(Frame &mCurrentFrame)
     sort(y_c.begin(), y_c.end());
     sort(z_c.begin(), z_c.end());
 
+    // notes: 点的数量需要大于4（第二项是否多余？感觉等同于第一项）
     if ((z_c.size() / 4 <= 0) || (z_c.size() * 3 / 4 >= z_c.size() - 1))
         return;
-
+    // notes: 取排序1/4和3/4处的深度并对其进行扩展，获取最大最小阈值
     float Q1 = z_c[(int)(z_c.size() / 4)];
     float Q3 = z_c[(int)(z_c.size() * 3 / 4)];
     float IQR = Q3 - Q1;
@@ -148,7 +149,7 @@ void Object_2D::RemoveOutliersByBoxPlot(Frame &mCurrentFrame)
         cv::Mat PointPosCamera = Rcw * PointPosWorld + tcw;
 
         float z = PointPosCamera.at<float>(2);
-
+        // notes: 排除过远处的3D点
         if (z > max_th)
             pMP = Obj_c_MapPonits.erase(pMP);   // remove.
         else
@@ -196,6 +197,8 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
                 // step 1.1 predict object bounding box according to last frame and next to last frame.
                 if (mpMap->mvObjectMap[i]->mnLastLastAddID == mCurrentFrame.mnId - 2)
                 {
+                    // 0____ll___l____c
+                    // c = l + l - ll = 2 * l - ll
                     // left-top.
                     float left_top_x = mpMap->mvObjectMap[i]->mLastRect.x * 2 - mpMap->mvObjectMap[i]->mLastLastRect.x;
                     if (left_top_x < 0)
@@ -256,6 +259,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
     vector<int> vObjByNPId;     // potential associated objects.
     if((flag != "NA") && (flag != "IoU"))
     {
+        // notes: 遍历vObjectMap中每一个物体实例，与自身的2D目标框做NP
         for (int i = (int)mpMap->mvObjectMap.size() - 1; (i >= 0) && (old == false); i--)
         {
             if (_class_id != mpMap->mvObjectMap[i]->mnClass)
@@ -281,12 +285,14 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
             // case 1: if associated by IoU, the objects judged by nonparametric-test are marked as potential association objects.
             if (bAssoByIou)
             {
+                // 遍历完成NP的匹配，看是否与IOU判断一致
                 for (int i = 0; i < vObjByNPId.size(); i++)
                 {
                     if (vObjByNPId[i] == nAssoByIouId)
                         continue;
 
                     // Record potential association objects and potential association times.
+                    // mReObj：记录NP潜在的链接关系
                     map<int, int>::iterator sit;
                     sit = mpMap->mvObjectMap[nAssoByIouId]->mReObj.find(mpMap->mvObjectMap[vObjByNPId[i]]->mnId);
                     if (sit != mpMap->mvObjectMap[nAssoByIouId]->mReObj.end())
@@ -301,6 +307,8 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
             }
 
             // case 2: if association failed by IoU,
+            // notes: 如果没有IOU重合，则把NP的结果代入DataAssociateUpdate进行检查
+            // 疑问：多对多怎么处理？即：vObjByNPId中有多个返回bFlag==true。不过好像没有影响
             else
             {
                 for (int i = 0; i < vObjByNPId.size(); i++)
@@ -350,6 +358,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
 
         if((flag != "NA") && (flag != "IoU") && (flag != "NP"))
         {
+            // 获得最大IOU的编号和值，记录部分bIoU大于0.25的
             float fIouMax = 0.0;
             int ProIouMaxObjId = -1;
             for (int i = (int)mpMap->mvObjectMap.size() - 1; i >= 0; i--)
@@ -359,22 +368,25 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
 
                 if (mpMap->mvObjectMap[i]->bBadErase)
                     continue;
-
+                // notes： 小样本和多物体下使用
                 int df = (int)mpMap->mvObjectMap[i]->mObjectFrame.size();
 
                 if ((Obj_c_MapPonits.size() >= 10) && (df > 8))
                     continue;
 
                 // step 3.1 compute IoU with bounding box constructed by projecting points.
+                // notes: mRectFeaturePoints 为物体确定的最大包围框，RectCurrent为YOLOX确定的包围框
                 float fIou = Converter::bboxOverlapratio(RectCurrent, mpMap->mvObjectMap[i]->mRectProject);
                 float fIou2 = Converter::bboxOverlapratio(mRectFeaturePoints, mpMap->mvObjectMap[i]->mRectProject);
                 fIou = max(fIou, fIou2);
 
                 // record the max IoU and map object id.
+                // notes: 找到最大重叠目标框
                 if ((fIou >= 0.25) && (fIou > fIouMax))
                 {
                     fIouMax = fIou;
                     ProIouMaxObjId = i;
+                    // 这种记录方式是不是有点不科学，毕竟这个不是排序过的
                     vObjByProIouId.push_back(i);
                 }
             }
@@ -479,7 +491,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
 
                 // Degrees of freedom.
                 int df = (int)mpMap->mvObjectMap[i]->mObjectFrame.size();
-
+                // 场景复杂下才启用
                 if (df <= 8)
                     continue;
 
@@ -495,11 +507,13 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
                 dis_z = abs(mpMap->mvObjectMap[i]->mCenter3D.at<float>(2, 0) - _Pos.at<float>(2, 0));
 
                 // t-test.
+                // notes: 对应论文中公式5
                 t_test_x = dis_x / (mpMap->mvObjectMap[i]->mCenterStandar_x / sqrt(df));
                 t_test_y = dis_y / (mpMap->mvObjectMap[i]->mCenterStandar_y / sqrt(df));
                 t_test_z = dis_z / (mpMap->mvObjectMap[i]->mCenterStandar_z / sqrt(df));
 
                 // Satisfy t test.  // 5->0.05.
+                // notes: curr_t_test < t_{n-1, \alpha /2} 详见t test单样本双侧临界表
                 if ((t_test_x < tTestData[min((df - 1), 121)][5]) &&
                     (t_test_y < tTestData[min((df - 1), 121)][5]) &&
                     (t_test_z < tTestData[min((df - 1), 121)][5]))
@@ -509,6 +523,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
                 // If the T-test is not satisfied, but the IOU is large, reducing the significance.
                 else if (fIou > 0.25)
                 {
+                    // 显著性降低为0.001，容许值更大一些
                     if ((t_test_x < tTestData[min((df - 1), 121)][8]) &&
                         (t_test_y < tTestData[min((df - 1), 121)][8]) &&
                         (t_test_z < tTestData[min((df - 1), 121)][8]))
@@ -548,7 +563,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
                     ReId = nAssoByNPId;
                 if (bAssoByProject)
                     ReId = nAssoByProId;
-
+                // 疑问： vObjByTId和vObjByTIdLower有什么区别？
                 if (vObjByTId.size() >= 1)
                 {
                     for (int j = 0; j < vObjByTId.size(); j++)
@@ -716,7 +731,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
 int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurrentFrame, cv::Mat &image)
 {
     // step 1. sample size.
-    // 2d object in the frame -- m.
+    // 2d object ponits in the frame -- m.
     int m = (int)Obj_c_MapPonits.size();
     int OutPointNum1 = 0;
     for (int ii = 0; ii < (int)Obj_c_MapPonits.size(); ii++)
@@ -730,7 +745,7 @@ int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurren
     }
     m = m - OutPointNum1;
 
-    // 3d object int the object map -- n.
+    // 3d object points in the object map -- n.
     int n = (int)ObjectMapSingle->mvpMapObjectMappoints.size();
     int OutPointNum2 = 0;
     for (int ii = 0; ii < (int)ObjectMapSingle->mvpMapObjectMappoints.size(); ii++) // 帧中物体.
@@ -744,13 +759,16 @@ int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurren
     }
     n = n - OutPointNum2;
 
+    // 0: skip the nonparametric test and continue with the subsequent t-test.
     if (m < 20)
         return 0;
 
+    // 2: association failed, compare next object.
     if (n < 20)
         return 2;
 
-    // Homogenization to avoid too many points of map object; n = 2 * m.
+    // Homogenization to avoid too many points of map object; n = 3 * m.
+    // 均匀化防止地图点过多
     bool bSampleMapPoints = true;
     vector<float> x_pt_map_sample;
     vector<float> y_pt_map_sample;
@@ -779,6 +797,7 @@ int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurren
                 y_pt.push_back(x3D2.at<float>(1, 0));
                 z_pt.push_back(x3D2.at<float>(2, 0));
             }
+            // 注意：这里是分开维度进行排序，相当于把点拆解了
             sort(x_pt.begin(), x_pt.end());
             sort(y_pt.begin(), y_pt.end());
             sort(z_pt.begin(), z_pt.end());
@@ -835,6 +854,7 @@ int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurren
         double y1 = x3D1.at<float>(1, 0);
         double z1 = x3D1.at<float>(2, 0);
 
+        // TODO: 感觉这块有点问题，没有进行排序
         if (!bSampleMapPoints)
         {
             for (int jj = 0; jj < (int)ObjectMapSingle->mvpMapObjectMappoints.size(); jj++)
@@ -848,6 +868,7 @@ int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurren
                 double y2 = x3D2.at<float>(1, 0);
                 double z2 = x3D2.at<float>(2, 0);
 
+                // notes: p1为物体帧点，p2为地图上的点
                 if (x1 > x2)
                     w_x_12++;
                 else if (x1 < x2)
@@ -879,6 +900,7 @@ int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurren
                 double y2 = y_pt_map_sample[jj];
                 double z2 = z_pt_map_sample[jj];
 
+                // 这里x_pt_map_sample实际上是排序过的，下面相当于对物体帧上的点进行排序
                 if (x1 > x2)
                     w_x_12++;
                 else if (x1 < x2)
@@ -904,11 +926,22 @@ int Object_2D::NoParaDataAssociation(Object_Map *ObjectMapSingle, Frame &mCurren
     }
 
     // step 2. compute the rank sum.
+    // notes: 注意，当我们计算若干等值元素的排名时，会用这些元素排名的平均值作为它们在整个序列中的排名。
+    // 这就是为什么要加 w_x_00 / 2 的原因
+    // w_x_12 + w_x_00 / 2 为 m对应的排序； w_x_21 + w_x_00 / 2 为 n对应的排序
+    // W = min(W_p, W_q)
     w_x = min(w_x_12 + m * (m + 1) / 2, w_x_21 + n * (n + 1) / 2) + w_x_00 / 2;
     w_y = min(w_y_12 + m * (m + 1) / 2, w_y_21 + n * (n + 1) / 2) + w_y_00 / 2;
     w_z = min(w_z_12 + m * (m + 1) / 2, w_z_21 + n * (n + 1) / 2) + w_z_00 / 2;
 
     // step 3. compute the critical value.
+    // TODO: 修改为wiki上的标准形式
+    // notes: 这里的公式其实不太对，代码中的公式为r1 = r_l = m + s * sqrt(\sigma)
+    // 其中\sigma = m * n * (m + n + 1) / 12
+    // 但是这种情况下是有重复秩的，\sigma应该用论文上的公式才对
+    // 不过论文上公式和wiki上也并不一致
+    // 给的注释即s的值好像也不太对，标准正态分布表中对应80%是0.85, 对应1.28的是90%
+    // 对应 1.96的是 97.5%
     float r1 = 0.5 * m * (m + n + 1) - 1.282 * sqrt(m * n * (m + n + 1) / 12); // 80%：1.282  85%:1.96
     float r2 = 0.5 * m * (m + n + 1) + 1.282 * sqrt(m * n * (m + n + 1) / 12); // 80%：1.282  85%:1.96
 
@@ -1059,7 +1092,7 @@ void Object_Map::ComputeMeanAndStandard()
         float z_min = z_pt[0];
         float z_max = z_pt[z_pt.size() - 1];
 
-        // centre.
+        // centre. 这是点集外包框的中心
         mCuboid3D.cuboidCenter = Eigen::Vector3d((x_max + x_min) / 2, (y_max + y_min) / 2, (z_max + z_min) / 2);
 
         mCuboid3D.x_min = x_min;
@@ -1093,6 +1126,8 @@ void Object_Map::ComputeMeanAndStandard()
     }
 
     // step 4. update object pose.
+    // notes: 利用yaw角对位姿进行矫正，同时把物体中心移动到世界坐标下
+    // 疑问：但是这里yaw好像没有变？感觉可以去掉？
     UpdateObjPose();
     // world -> object frame.
     vector<float> x_pt_obj, y_pt_obj, z_pt_obj;
@@ -1145,6 +1180,8 @@ void Object_Map::ComputeMeanAndStandard()
     mCuboid3D.corner_8_w = this->mCuboid3D.pose_without_yaw * Eigen::Vector3d(x_min_obj, y_max_obj, z_max_obj);
 
     // update scale and pose.
+    // notes: 转换到物体帧后重新计算包围长方体、
+    // 疑问: 意义何在？
     this->mCuboid3D.lenth = x_max_obj - x_min_obj;
     this->mCuboid3D.width = y_max_obj - y_min_obj;
     this->mCuboid3D.height = z_max_obj - z_min_obj;
@@ -1179,6 +1216,7 @@ void Object_Map::ComputeMeanAndStandard()
         float fTmp = sqrt(mDis.at<float>(0) * mDis.at<float>(0) + mDis.at<float>(1) * mDis.at<float>(1) + mDis.at<float>(2) * mDis.at<float>(2));
         fRMax = max(fRMax, fTmp);
     }
+    // 中心点与角点的最大半径
     mCuboid3D.mfRMax = fRMax;
 
     // standard deviation of distance.
@@ -1206,6 +1244,7 @@ void Object_Map::IsolationForestDeleteOutliers()
     if(!biForest)
         return;
 
+    // TODO: 不同物体有不同的处理方法
     if ((this->mnClass == 75) || (this->mnClass == 64) || (this->mnClass == 65))
         return;
 
@@ -1213,6 +1252,7 @@ void Object_Map::IsolationForestDeleteOutliers()
     if (this->mnClass == 62)
         th = 0.65;
 
+    // notes: 相对于传统的srand()，std::mt19937拥有更好的性能。
     std::mt19937 rng(12345);
     std::vector<std::array<float, 3>> data; // uint32_t
 
@@ -1326,6 +1366,7 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     // step 1. whether the box projected into the image changes greatly after the new point cloud is associated.
     if ((Flag != 1) && (Flag != 4))
     {
+        // notes：ProjectRect1表示物体地图上的目标框投影; ProjectRect2表示融入当前帧的目标框投影
         cv::Rect ProjectRect1;
         cv::Rect ProjectRect2;
 
@@ -1336,6 +1377,7 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
         // mixed points of frame object and map object.
         vector<float> x_pt;
         vector<float> y_pt;
+        // notes: Obj_c_MapPonits为物体上的3D点，mvpMapObjectMappoints为物体地图上的点
         for (int i = 0; i < ObjectFrame->Obj_c_MapPonits.size(); ++i)
         {
             MapPoint *pMP = ObjectFrame->Obj_c_MapPonits[i];
@@ -1397,7 +1439,6 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     }
 
     // step 2. update the ID of the last frame
-
     if (mnLastAddID != (int)mCurrentFrame.mnId)
     {
         mnLastLastAddID = mnLastAddID;
@@ -1419,7 +1460,6 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     ObjectFrame->mnWhichTime = mnConfidence;
 
     // step 3. Add the point cloud of the frame object to the map object
-
     for (size_t j = 0; j < ObjectFrame->Obj_c_MapPonits.size(); ++j)
     {
         MapPoint *pMP = ObjectFrame->Obj_c_MapPonits[j];
@@ -1435,21 +1475,23 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
         if (fDis > th * mCuboid3D.mfRMax)
             continue;
 
-        if ((this->mObjectFrame.size() >= 10) && ((this->mnClass == 56) || (this->mnClass == 77)))
-        {
-            Eigen::Vector3d scale = this->mCuboid3D.pose.inverse() * Converter::toVector3d(pointPos);
-            if ((abs(scale[0]) > 1.2 * this->mCuboid3D.lenth / 2) ||
-                (abs(scale[1]) > 1.2 * this->mCuboid3D.width / 2) ||
-                (abs(scale[2]) > 1.2 * this->mCuboid3D.height / 2))
-                continue;
-        }
+        // if ((this->mObjectFrame.size() >= 10) && ((this->mnClass == 56) || (this->mnClass == 77)))
+        // {
+        //     Eigen::Vector3d scale = this->mCuboid3D.pose.inverse() * Converter::toVector3d(pointPos);
+        //     if ((abs(scale[0]) > 1.2 * this->mCuboid3D.lenth / 2) ||
+        //         (abs(scale[1]) > 1.2 * this->mCuboid3D.width / 2) ||
+        //         (abs(scale[2]) > 1.2 * this->mCuboid3D.height / 2))
+        //         continue;
+        // }
 
         pMP->object_id = mnId;
         pMP->object_class = mnClass;
 
         // add points.
-
         map<int, int>::iterator sit;
+        // notes: pMP为目标框中对应的3D点；
+        // object_id_vector frist对应所属于的帧中的物体id， second为对应的次数
+        // 疑问：这个object_id不是本身不重复的吗？重复是产生在哪里呢？（可能在融合部分）
         sit = pMP->object_id_vector.find(pMP->object_id);
         if (sit != pMP->object_id_vector.end())
         {
@@ -1462,6 +1504,8 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
             pMP->object_id_vector.insert(make_pair(pMP->object_id, 1));
         }
 
+
+        // notes: 检查有无重复地图点，并添加新的地图点
         {
             unique_lock<mutex> lock(mMutexMapPoints);
             bool new_point = true;
@@ -1494,7 +1538,6 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     }
 
     // step 4. the historical point cloud is projected into the image, and the points not in the box(should not on the edge) are removed.
-
     if ((ObjectFrame->mBox.x > 25) && (ObjectFrame->mBox.y > 25) &&
         (ObjectFrame->mBox.x + ObjectFrame->mBox.width < image.cols - 25) &&
         (ObjectFrame->mBox.y + ObjectFrame->mBox.height < image.rows - 25))
@@ -1504,6 +1547,7 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
         for (pMP = mvpMapObjectMappoints.begin();
              pMP != mvpMapObjectMappoints.end();)
         {
+            // notes: map中找到当前物体点上的物体类别
             int sit_sec = 0;
             map<int , int>::iterator sit;
             sit = (*pMP)->object_id_vector.find(mnId);
@@ -1638,6 +1682,7 @@ void Object_Map::WhetherMergeTwoMapObjs(Map *mpMap)
         else
             bSametime = false;
 
+        // notes: 选择点较少的一方保留
         if((!bSametime || bDoubelTtest))
         {
             int nAppearTimes1 = mObjectFrame.size();
@@ -1662,7 +1707,7 @@ void Object_Map::WhetherMergeTwoMapObjs(Map *mpMap)
 } // WhetherMergeTwoMapObjs(Map *mpMap) END --------------------------------------
 
 
-// BRIEF double t-test.
+// BRIEF double t-test.（localmapping thread）
 bool Object_Map::DoubleSampleTtest(Object_Map *RepeatObj)
 {
     // Read t-distribution boundary value.
@@ -1696,12 +1741,9 @@ bool Object_Map::DoubleSampleTtest(Object_Map *RepeatObj)
     float fCenterStandar2_z = RepeatObj->mCenterStandar_z;
 
     // Combined standard deviation.
-    float d_x = sqrt( ( ( (ndf1-1)*fMean1_x*fMean1_x + (ndf2-1)*fMean2_x*fMean2_x ) / (ndf1 + ndf2 - 2) ) *
-                      (1/ndf1 + 1/ndf2) );
-    float d_y = sqrt( ( ( (ndf1-1)*fMean1_y*fMean1_y + (ndf2-1)*fMean2_y*fMean2_y ) / (ndf1 + ndf2 - 2) ) *
-                      (1/ndf1 + 1/ndf2) );
-    float d_z = sqrt( ( ( (ndf1-1)*fMean1_z*fMean1_z + (ndf2-1)*fMean2_z*fMean2_z ) / (ndf1 + ndf2 - 2) ) *
-                      (1/ndf1 + 1/ndf2) );
+    float d_x = sqrt( ( ( (ndf1-1)*fMean1_x*fMean1_x + (ndf2-1)*fMean2_x*fMean2_x ) / (ndf1 + ndf2 - 2) ) * (1/ndf1 + 1/ndf2) );
+    float d_y = sqrt( ( ( (ndf1-1)*fMean1_y*fMean1_y + (ndf2-1)*fMean2_y*fMean2_y ) / (ndf1 + ndf2 - 2) ) * (1/ndf1 + 1/ndf2) );
+    float d_z = sqrt( ( ( (ndf1-1)*fMean1_z*fMean1_z + (ndf2-1)*fMean2_z*fMean2_z ) / (ndf1 + ndf2 - 2) ) * (1/ndf1 + 1/ndf2) );
 
     // t-test
     float t_test_x = ( fMean1_x -fMean2_x ) / d_x;
@@ -1848,6 +1890,7 @@ void Object_Map::MergeTwoMapObjs(Object_Map *RepeatObj)
     }
 
     // step 5. update direction.
+    // TODO: 修改类型编号
     if (((mnClass == 73) || (mnClass == 64) || (mnClass == 65)
         || (mnClass == 66) || (mnClass == 56)))
     {
@@ -2100,12 +2143,14 @@ void Object_Map::DealTwoOverlapObjs(Object_Map *OverlapObj, float overlap_x, flo
         bIou = false;
 
     // compute the volume difference.
+    // notes: 重合体积有两倍以上的体积差
     if ((fThis_obj_volume > 2 * fOverlap_obj_volume) || (fOverlap_obj_volume > 2 * fThis_obj_volume))
         bVolume = true;
     else
         bVolume = false;
 
     // whether simultaneous appearance.
+    // 是否同时出现
     map<int, int>::iterator sit;
     sit = mmAppearSametime.find(OverlapObj->mnId);
     if (sit != mmAppearSametime.end())
@@ -2127,6 +2172,7 @@ void Object_Map::DealTwoOverlapObjs(Object_Map *OverlapObj, float overlap_x, flo
     // case 1: IOU is large, the volume difference is small, doesn't simultaneous appearance, same class --> the same object, merge them.
     if ((bIou == true) && (bVolume == false) && (bSame_time == false) && (bClass == true))
     {
+        //
         if (this->mObjectFrame.size() >= OverlapObj->mObjectFrame.size())
         {
             this->MergeTwoMapObjs(OverlapObj);
@@ -2203,6 +2249,8 @@ void Object_Map::UpdateObjPose()
     unique_lock<mutex> lock(mMutex);
 
     // Rotation matrix.
+    // notes: rotP，rotR默认为0；rotY初始也是0，在localmap线程时候和后续angle矫正时在改变
+    // 但是一开始（ComputeMeanAndStandard中第一次）好像没有调用？没有调用时候好像没啥意义？
     float cp = cos(mCuboid3D.rotP);
     float sp = sin(mCuboid3D.rotP);
     float sr = sin(mCuboid3D.rotR);
@@ -2221,6 +2269,7 @@ void Object_Map::UpdateObjPose()
     cv::Mat tcw = Twobj.rowRange(0, 3).col(3);
     cv::Mat result = Rcw * Ryaw;
 
+    // notes：将物体转移到世界坐标系下
     Twobj.at<float>(0, 0) = result.at<float>(0, 0);
     Twobj.at<float>(0, 1) = result.at<float>(0, 1);
     Twobj.at<float>(0, 2) = result.at<float>(0, 2);
@@ -2242,6 +2291,8 @@ void Object_Map::UpdateObjPose()
     Twobj.at<float>(3, 3) = 1;
 
     // note no yaw.
+    // notes: mCuboid3D.cuboidCenter[1] != mCenter3D.at<float>(1)
+    // cuboidCenter是外接长方体，mCenter3D为点的均值
     cv::Mat Twobj_without_yaw = cv::Mat::eye(4, 4, CV_32F);
     Twobj_without_yaw.at<float>(0, 3) = mCenter3D.at<float>(0);
     Twobj_without_yaw.at<float>(1, 3) = mCuboid3D.cuboidCenter[1];

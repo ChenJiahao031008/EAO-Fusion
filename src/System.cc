@@ -123,34 +123,36 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     mpSemiDenseMapping = new ProbabilityMapping(mpMap);
     mptSemiDense = new thread(&ProbabilityMapping::Run, mpSemiDenseMapping);
 
+    // _____________________________yolox_______________________________
+    std::string engineFile = WORK_SPACE_PATH + "/ros_test/config/model_trt.engine";
+    mpSemanticer = new YOLOX(engineFile);
+    mptSemanticer = new thread(&ORB_SLAM2::YOLOX::Run, mpSemanticer);
+    // _____________________________yolox_______________________________
+
     //Initialize the Viewer thread and launch
     mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker,strSettingsFile, flag);
     if(bUseViewer)
         mptViewer = new thread(&Viewer::Run, mpViewer);
 
     mpTracker->SetViewer(mpViewer);
-
-    //Set pointers between threads
     mpTracker->SetLocalMapper(mpLocalMapper);
     mpTracker->SetLoopClosing(mpLoopCloser);
-	// give tracker semi dense pointer, for resetting
 	mpTracker->SetSemiDenseMapping(mpSemiDenseMapping);
 
     mpLocalMapper->SetTracker(mpTracker);
     mpLocalMapper->SetLoopCloser(mpLoopCloser);
-
     mpLoopCloser->SetTracker(mpTracker);
     mpLoopCloser->SetLocalMapper(mpLocalMapper);
 
-    // // [EAO] Set pointers between threads.
-    // if(mbSemanticOnline)
-    // {
-    //     mpTracker->SetSemanticer(mpSemanticer);
-    // }
-    // if(mbSemanticOnline)
-    // {
-    //     mpSemanticer->SetTracker(mpTracker);
-    // }
+    // [EAO] Set pointers between threads.
+    if(bSemanticOnline)
+    {
+        mpTracker->SetSemanticer(mpSemanticer);
+    }
+    if(bSemanticOnline)
+    {
+        mpSemanticer->SetTracker(mpTracker);
+    }
 }
 
 cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)

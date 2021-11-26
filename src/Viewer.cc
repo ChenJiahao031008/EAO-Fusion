@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 05/21/2019
@@ -18,8 +18,8 @@
 namespace ORB_SLAM2
 {
 
-Viewer::Viewer( System* pSystem, FrameDrawer *pFrameDrawer, 
-                MapDrawer *pMapDrawer, Tracking *pTracking, 
+Viewer::Viewer( System* pSystem, FrameDrawer *pFrameDrawer,
+                MapDrawer *pMapDrawer, Tracking *pTracking,
                 const string &strSettingPath, const string &flag):
     mpSystem(pSystem), mpFrameDrawer(pFrameDrawer),mpMapDrawer(pMapDrawer), mpTracker(pTracking),
     mbFinishRequested(false), mbFinished(true), mbStopped(false), mbStopRequested(false), mflag(flag)
@@ -68,7 +68,7 @@ void Viewer::Run()
 
     pangolin::CreatePanel("menu").SetBounds(0.0,1.0,0.0,pangolin::Attach::Pix(175));
     pangolin::Var<bool> menuFollowCamera("menu.Follow Camera",true,true);
-    pangolin::Var<bool> menuShowCamera("menu.Show Camera",true,true);           
+    pangolin::Var<bool> menuShowCamera("menu.Show Camera",true,true);
     pangolin::Var<bool> menuShowPoints("menu.Show Points",true,true);
     pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames",true,true);
     pangolin::Var<bool> menuShowGraph("menu.Show Graph",true,true);

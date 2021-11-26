@@ -1,4 +1,5 @@
 #include "message_flow.h"
+#include <cassert>
 
 Eigen::Matrix4d INIT_POSE = Eigen::Matrix4d::Identity();
 
@@ -16,6 +17,9 @@ MessageFlow::MessageFlow(ros::NodeHandle &nh)
     // 读取launch文件中的参数
     ros::param::param<std::string>("~sensor", sensor, "RGBD");
     ros::param::param<bool>("~online", semanticOnline, "true");
+    ros::param::param<bool>("~rosbag", rosBagFlag, "false");;
+    ros::param::param<int>("~gravity_aixs", gravity_aixs, 3);
+
     initIMUFlag = false;
 
     // 系统初始化
@@ -33,8 +37,6 @@ MessageFlow::MessageFlow(ros::NodeHandle &nh)
 
 MessageFlow::~MessageFlow()
 {
-    slam_ptr_->Shutdown();
-    slam_ptr_->SaveTrajectoryTUM("CameraTrajectory.txt");
 }
 
 void MessageFlow::Run()
@@ -55,13 +57,13 @@ void MessageFlow::Run()
         double unsynced_imu_time_front = unsynced_imu_data_.front().header.stamp.toSec();
         double diff_time = unsynced_imu_time_back - unsynced_imu_time_front;
 
-        std::cout << synced_imu_data_.linear_acceleration << std::endl;
+        // std::cout << synced_imu_data_.linear_acceleration << std::endl;
 
-        ROS_INFO("[DEBUG] current_time is : %f", current_time);
-        ROS_INFO("[DEBUG] imu_time is : %f", imu_time);
-        ROS_INFO("[DEBUG] unsynced_imu_time_back is : %f", unsynced_imu_time_back);
-        ROS_INFO("[DEBUG] unsynced_imu_time_front is : %f", unsynced_imu_time_front);
-        ROS_INFO("[DEBUG] diff_time is : %f", diff_time);
+        // ROS_INFO("[DEBUG] current_time is : %f", current_time);
+        // ROS_INFO("[DEBUG] imu_time is : %f", imu_time);
+        // ROS_INFO("[DEBUG] unsynced_imu_time_back is : %f", unsynced_imu_time_back);
+        // ROS_INFO("[DEBUG] unsynced_imu_time_front is : %f", unsynced_imu_time_front);
+        // ROS_INFO("[DEBUG] diff_time is : %f", diff_time);
 
         if (sensor == "RGBD"){
             slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);
@@ -84,7 +86,13 @@ bool MessageFlow::ReadData()
     if (image_color_data_buff_.size() == 0 || image_depth_data_buff_.size() == 0)
         return false;
 
-    ros::Time image_time = image_color_data_buff_.front().header.stamp;
+    ros::Time image_time;
+    if (rosBagFlag)
+        image_time = image_color_data_buff_.front().header.stamp;
+    else
+        image_time = image_color_data_buff_.back().header.stamp;
+
+
     bool valid_imu = IMUSyncData(
         unsynced_imu_data_buff_, unsynced_imu_data_, synced_imu_data_buff_, image_time);
 
@@ -95,8 +103,13 @@ bool MessageFlow::ReadData()
         if (!valid_imu)
         {
             std::cerr << "[WARNNIGN] FAIL TO START." << std::endl;
-            image_color_data_buff_.pop_front();
-            image_depth_data_buff_.pop_front();
+            if (rosBagFlag){
+                image_color_data_buff_.pop_front();
+                image_depth_data_buff_.pop_front();
+            }else{
+                image_color_data_buff_.pop_back();
+                image_depth_data_buff_.pop_back();
+            }
             return false;
         }
         sensor_inited = true;
@@ -191,17 +204,26 @@ bool MessageFlow::HasData()
 
 bool MessageFlow::ValidData()
 {
-    double image_time = image_color_data_buff_.front().header.stamp.toSec();
-    current_image_color_data_ = image_color_data_buff_.front();
-    current_image_depth_data_ = image_depth_data_buff_.front();
+    double image_time;
+    if (rosBagFlag){
+        image_time = image_color_data_buff_.front().header.stamp.toSec();
+        current_image_color_data_ = image_color_data_buff_.front();
+        current_image_depth_data_ = image_depth_data_buff_.front();
+        image_color_data_buff_.pop_front();
+        image_depth_data_buff_.pop_front();
+    }else{
+        image_time = image_color_data_buff_.back().header.stamp.toSec();
+        current_image_color_data_ = image_color_data_buff_.back();
+        current_image_depth_data_ = image_depth_data_buff_.back();
+        image_color_data_buff_.clear();
+        image_depth_data_buff_.clear();
+    }
+
 
     synced_imu_data_ = synced_imu_data_buff_.front();
     synced_imu_data_buff_.pop_front();
 
     double diff_time = current_image_color_data_.header.stamp.toSec() - synced_imu_data_.header.stamp.toSec();
-
-    image_color_data_buff_.pop_front();
-    image_depth_data_buff_.pop_front();
 
     if (diff_time > 0.05)
         return false;
@@ -230,12 +252,43 @@ bool MessageFlow::InitIMU(){
     if (initIMUFlag)
         return true;
     Eigen::Vector3d initIMU(synced_imu_data_.linear_acceleration.x, synced_imu_data_.linear_acceleration.y, synced_imu_data_.linear_acceleration.z);
-    Eigen::Vector3d initBeiJingGravity(0, 0, 9.886);
-    Eigen::Vector3d initTransform = initIMU - initBeiJingGravity;
-    double angle = initTransform.norm();
-    Eigen::AngleAxisd angleAxisd(angle, initTransform.normalized());
-    INIT_POSE.block<3,3>(0,0) = angleAxisd.toRotationMatrix() * Eigen::Matrix3d::Identity();
+
+    Eigen::Vector3d alpha_1 = initIMU;
+    Eigen::Vector3d alpha_2, alpha_3;
+    if (gravity_aixs == 2)
+    {
+        alpha_2 = Eigen::Vector3d(1, 0, 0);
+        alpha_3 = Eigen::Vector3d(0, 0, 1);
+    }else if (gravity_aixs == 3){
+        alpha_2 = Eigen::Vector3d(1, 0, 0);
+        alpha_3 = Eigen::Vector3d(0, 1, 0);
+    }
+    Eigen::Vector3d beta_1 = alpha_1.normalized();
+    Eigen::Vector3d beta_2 = (alpha_2 - beta_1.dot(alpha_2) * 1.0 / beta_1.dot(beta_1) * beta_1).normalized();
+    Eigen::Vector3d beta_3 = (alpha_3 - beta_1.dot(alpha_3) * 1.0 / beta_1.dot(beta_1) * beta_1 - beta_2.dot(alpha_3) * 1.0 / beta_2.dot(beta_2) * beta_2).normalized();
+    Eigen::Matrix3d InitR = Eigen::Matrix3d::Identity();
+    if (gravity_aixs == 2)
+    {
+        InitR.block<3, 1>(0, 0) = beta_2;
+        InitR.block<3, 1>(0, 1) = beta_1;
+        InitR.block<3, 1>(0, 2) = beta_3;
+    }else if (gravity_aixs == 3){
+        InitR.block<3, 1>(0, 0) = beta_2;
+        InitR.block<3, 1>(0, 1) = beta_3;
+        InitR.block<3, 1>(0, 2) = beta_1;
+    }
+    assert(InitR.determinant() == 1 || InitR.determinant() == -1);
+    if (InitR.determinant() == -1){
+        InitR = -1 * InitR;
+        assert(InitR.determinant() == 1);
+    }
+    INIT_POSE.block<3, 3>(0, 0) = InitR;
     // initIMUFlag = true;
-    std::cout << "[INFO] INIT_POSE IS: \n" << INIT_POSE << std::endl;
+    // std::cout << "[INFO] INIT_POSE IS: \n" << INIT_POSE << std::endl;
     return true;
+}
+
+void MessageFlow::SaveTrajectory(){
+    slam_ptr_->SaveTrajectoryTUM("CameraTrajectory.txt");
+    slam_ptr_->Shutdown();
 }

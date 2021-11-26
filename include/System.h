@@ -39,6 +39,7 @@
 
 // yolo online
 // #include "Semantic.h"
+#include "YOLOX.h"
 
 namespace ORB_SLAM2
 {
@@ -49,7 +50,7 @@ class Map;
 class Tracking;
 class LocalMapping;
 class LoopClosing;
-// class Semantic;
+class YOLOX;
 
 class System
 {
@@ -142,7 +143,7 @@ private:
     // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.
     LoopClosing* mpLoopCloser;
 
-    // Semantic* mpSemanticer;  // yolo online.
+    YOLOX* mpSemanticer;  // yolo online.
 
     // The viewer draws the map and the current camera pose. It uses Pangolin.
     Viewer* mpViewer;
@@ -157,8 +158,7 @@ private:
     std::thread* mptLoopClosing;
     std::thread* mptViewer;
     std::thread* mptSemiDense;
-
-    // std::thread* mptSemanticer;  // yolo online.
+    std::thread* mptSemanticer;  // yolo online.
 
     // Reset flag
     std::mutex mMutexReset;

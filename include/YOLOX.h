@@ -12,8 +12,12 @@
 #include "NvInfer.h"
 #include "cuda_runtime_api.h"
 #include "Logging.h"
+#include "Tracking.h"
+
 namespace ORB_SLAM2
 {
+class Tracking;
+
 #define CHECK(status)                                          \
     do                                                         \
     {                                                          \
@@ -69,8 +73,22 @@ private:
     const char *INPUT_BLOB_NAME = "input_0";
     const char *OUTPUT_BLOB_NAME = "output_0";
 
+    // yolox thread
+    Tracking *mpTracker;
+    bool mbFinishRequested;
+    bool mbFinished;
+    bool mbGetResult;
+
+    std::list<cv::Mat> IMGQueue;
+    std::list<std::vector<Object> > ResQueue;
+
+    std::mutex mMutexFinish;
+    std::mutex mMutexYOLOXQueue;
+    std::mutex mMutexResQueue;
+
 public:
     YOLOX(const std::string &engine_file_path);
+
     ~YOLOX();
 
     cv::Mat StaticResize(cv::Mat &img);
@@ -95,7 +113,19 @@ public:
 
     void DoInference(nvinfer1::IExecutionContext &context, float *input, float *output, const int output_size, cv::Size input_shape);
 
-    void Detect(cv::Mat &image, std::vector<Object> &objects);
+    void Detect();
+
+    // yolox thread
+    void Run();
+    void SetTracker(Tracking *pTracker);
+    void InsertImage(cv::Mat rgb);
+    void SetFinish();
+    void RequestFinish();
+    bool CheckFinish();
+    bool CheckResult();
+    bool isFinished();
+    bool CheckFrames();
+    void GetResult(std::vector<Object> &output);
 };
 
 const float color_list[80][3] =
@@ -192,5 +222,5 @@ static const char *class_names[] = {
     "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
     "hair drier", "toothbrush"};
 
-#endif
 }
+#endif

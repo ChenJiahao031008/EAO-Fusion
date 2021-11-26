@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 14:29:27
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-11-07 16:55:07
+ * @LastEditTime: 2021-11-26 11:28:23
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/message_flow.h
  */
@@ -51,6 +51,8 @@ private:
     // 判断是否在线的标志
     bool semanticOnline;
     bool initIMUFlag;
+    bool rosBagFlag;
+    int gravity_aixs = 3;
     // 判断传感器类型的标志
     std::string sensor;
     // 与图像进行同步的IMU数据缓存队列
@@ -89,6 +91,8 @@ public:
         std::deque<sensor_msgs::Imu> &UnsyncedData,
         std::deque<sensor_msgs::Imu> &SyncedData,
         ros::Time sync_time);
+
+    void SaveTrajectory();
 };
 
 #endif
