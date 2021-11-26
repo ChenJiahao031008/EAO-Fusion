@@ -33,7 +33,7 @@ namespace ORB_SLAM2
     class MapPoint;
     class KeyFrame;
     class Map;
-    
+
     // BRIEF the object in current frame.
     class Object_2D
     {
@@ -62,12 +62,12 @@ namespace ORB_SLAM2
             int mnId;               // object ID.
             int mnWhichTime;
 
-            int LastAddId;                  
-            cv::Point2f point_center_2d;    
-            bool mbHaveCube = false;        
+            int LastAddId;
+            cv::Point2f point_center_2d;
+            bool mbHaveCube = false;
             // cuboid* mDetectedCube;          // cube slam.
 
-            bool few_mappoint;      
+            bool few_mappoint;
             bool bOnEdge;           // on the edge of the image.
 
             bool First_obj;
@@ -76,19 +76,19 @@ namespace ORB_SLAM2
             bool bad = false;
             bool current = false;
 
-            int nMayRepeat = 0;                 
+            int nMayRepeat = 0;
             std::map<int, float> mReIdAndIou;   // potential objects.
 
-            vector< MapPoint*>  Obj_k_MapPonits;  // not used. 
-            vector< MapPoint*>  co_MapPonits;     // not used.      
-            // vector< MapPoint*>  pro_MapPonits;       
-            // vector<cv::Mat> pro_MapPoints_camera;    
+            vector< MapPoint*>  Obj_k_MapPonits;  // not used.
+            vector< MapPoint*>  co_MapPonits;     // not used.
+            // vector< MapPoint*>  pro_MapPonits;
+            // vector<cv::Mat> pro_MapPoints_camera;
 
             cv::Mat sum_pos_3d;         // Summation of points observed in the current frame.
             cv::Mat sum_pos_3d_map;     // Summation of points observed in the map.
 
             // line.
-            Eigen::MatrixXd mObjLinesEigen; 
+            Eigen::MatrixXd mObjLinesEigen;
 
             void CopyBoxes(const BoxSE &box);           // copy box to object_2d.
             void ComputeMeanAndStandardFrame();         // compute the mean and standard deviation of object points in current frame.
@@ -96,12 +96,12 @@ namespace ORB_SLAM2
             void ObjectDataAssociation(Map* mpMap, Frame &mCurrentFrame, cv::Mat &image, string &flag);    // data association.
             int  NoParaDataAssociation(Object_Map* ObjectMapSingle, Frame &mCurrentFrame, cv::Mat &image); // NP.
             void MergeTwoFrameObj(Object_2D* ObjLastFrame);
-        
+
         protected:
             std::mutex mMutexFrameObjMapPoints;
     };
 
-    // brief 
+    // brief
     struct Cuboid3D
     {
         //     7------6
@@ -146,7 +146,7 @@ namespace ORB_SLAM2
         g2o::SE3Quat pose_without_yaw;          // 6 dof pose without rotation.
 
         // angle.
-        float rotY = 0.0;        
+        float rotY = 0.0;
         float rotP = 0.0;
         float rotR = 0.0;
 
@@ -170,7 +170,7 @@ namespace ORB_SLAM2
             int mnClass;
             int mnConfidence;
             bool mbFirstObserve;
-            int mnAddedID;      
+            int mnAddedID;
             int mnLastAddID;
             int mnLastLastAddID;
             std::set<int> msFrameId;
@@ -178,10 +178,10 @@ namespace ORB_SLAM2
             vector< MapPoint*> mvpMapCurrentNewMappoints;
 
             cv::Mat mSumPointsPos;
-            cv::Mat mCenter3D;          
+            cv::Mat mCenter3D;
             float mStandar_x, mStandar_y, mStandar_z;
             float mCenterStandar_x, mCenterStandar_y, mCenterStandar_z;
-            float mCenterStandar; 
+            float mCenterStandar;
 
             int nMayRepeat = 0;                 // maybe a repeat object.
             std::map<int, int> mReObj;          // potential associated objects.
@@ -196,18 +196,18 @@ namespace ORB_SLAM2
 
             void ComputeMeanAndStandard();
             void IsolationForestDeleteOutliers();
-            bool DataAssociateUpdate(   Object_2D* ObjectFrame, 
-                                        Frame &mCurrentFrame, 
+            bool DataAssociateUpdate(   Object_2D* ObjectFrame,
+                                        Frame &mCurrentFrame,
                                         cv::Mat &image,
                                         int Flag);
 
-            void ComputeProjectRectFrame(cv::Mat &image, Frame &mCurrentFrame); 
+            void ComputeProjectRectFrame(cv::Mat &image, Frame &mCurrentFrame);
             void WhetherMergeTwoMapObjs(Map *mpMap);
             void MergeTwoMapObjs(Object_Map *RepeatObj);
             bool DoubleSampleTtest(Object_Map *RepeatObj);
             void DealTwoOverlapObjs(Object_Map *OverlapObj, float overlap_x, float overlap_y, float overlap_z);
             bool WhetherOverlap(Object_Map *CompareObj);
-            void BigToSmall(Object_Map *SmallObj, float overlap_x, float overlap_y, float overlap_z);          
+            void BigToSmall(Object_Map *SmallObj, float overlap_x, float overlap_y, float overlap_z);
             void DivideEquallyTwoObjs(Object_Map *AnotherObj, float overlap_x, float overlap_y, float overlap_z);
 
             // void UpdateObjScale(Eigen::Vector3d Scale);    // for optimization.

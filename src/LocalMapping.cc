@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 10/26/2019
@@ -163,7 +163,7 @@ void LocalMapping::ProcessNewKeyFrame()
                 }
             }
         }
-    }    
+    }
 
     // Update links in the Covisibility Graph
     mpCurrentKeyFrame->UpdateConnections();
@@ -344,7 +344,7 @@ void LocalMapping::CreateNewMapPoints()
             }
             else if(bStereo1 && cosParallaxStereo1<cosParallaxStereo2)
             {
-                x3D = mpCurrentKeyFrame->UnprojectStereo(idx1);                
+                x3D = mpCurrentKeyFrame->UnprojectStereo(idx1);
             }
             else if(bStereo2 && cosParallaxStereo2<cosParallaxStereo1)
             {
@@ -438,7 +438,7 @@ void LocalMapping::CreateNewMapPoints()
             // Triangulation is succesfull
             MapPoint* pMP = new MapPoint(x3D,mpCurrentKeyFrame,mpMap);
 
-            pMP->AddObservation(mpCurrentKeyFrame,idx1);            
+            pMP->AddObservation(mpCurrentKeyFrame,idx1);
             pMP->AddObservation(pKF2,idx2);
 
             mpCurrentKeyFrame->AddMapPoint(pMP,idx1);
@@ -699,7 +699,7 @@ void LocalMapping::KeyFrameCulling()
                     }
                 }
             }
-        }  
+        }
 
         if(nRedundantObservations>0.9*nMPs)
             pKF->SetBadFlag();
@@ -757,7 +757,7 @@ bool LocalMapping::CheckFinish()
 void LocalMapping::SetFinish()
 {
     unique_lock<mutex> lock(mMutexFinish);
-    mbFinished = true;    
+    mbFinished = true;
     unique_lock<mutex> lock2(mMutexStop);
     mbStopped = true;
 }
@@ -812,7 +812,8 @@ void LocalMapping::MergePotentialAssObjs()
         if(Obj->bBadErase)
             continue;
 
-        // if (Obj->mnLastAddID == mCurrentFrame.mnId - 3) 
+        // if (Obj->mnLastAddID == mCurrentFrame.mnId - 3)
+        // TODO：localmap thread
         if (Obj->mObjectFrame.size() >= 10)     // todo: when to do ?
         {
             if(Obj->mReObj.size() > 0)
@@ -847,14 +848,14 @@ void LocalMapping::WhetherOverlapObject()
         {
             if(i == j)
                 continue;
-            
+
             Object_Map* Obj2 = vObjs[j];
 
             if((Obj2->mvpMapObjectMappoints.size() < 10) || (Obj2->bBadErase == true) || (Obj2->mObjectFrame.size() < 10))
             {
                 continue;
             }
-            
+
             float dis_x = abs(Obj->mCuboid3D.cuboidCenter(0) - Obj2->mCuboid3D.cuboidCenter(0));
             float dis_y = abs(Obj->mCuboid3D.cuboidCenter(1) - Obj2->mCuboid3D.cuboidCenter(1));
             float dis_z = abs(Obj->mCuboid3D.cuboidCenter(2) - Obj2->mCuboid3D.cuboidCenter(2));
@@ -869,6 +870,7 @@ void LocalMapping::WhetherOverlapObject()
             if((dis_x < sum_lenth_half) && (dis_y < sum_width_half) && (dis_z < sum_height_half))
             {
                 // overlap in 3 directions.
+                // notes：画图理解重叠的含义
                 float overlap_x = sum_lenth_half - dis_x;
                 float overlap_y = sum_width_half - dis_y;
                 float overlap_z = sum_height_half - dis_z;

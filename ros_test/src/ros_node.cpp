@@ -23,6 +23,7 @@
 #include "imu_subscriber.h"
 #include "image_subscriber.h"
 
+
 // IMU相关
 #include <sensor_msgs/Imu.h>
 
@@ -101,8 +102,8 @@ public:
             double real_time = ros::Time::now().toSec();
             double current_time = current_image_color_data_.header.stamp.toSec();
             double imu_time = current_imu_data_.header.stamp.toSec();
-            ROS_INFO("current_time is : %f", current_time);
-            ROS_INFO("imu_time is : %f", imu_time);
+            // ROS_INFO("current_time is : %f", current_time);
+            // ROS_INFO("imu_time is : %f", imu_time);
             if (sensor == "RGBD")
             {
                 slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);
@@ -165,6 +166,7 @@ public:
 };
 
 
+
 int main(int argc, char *argv[])
 {
     // google::InitGoogleLogging(argv[0]);
@@ -184,6 +186,7 @@ int main(int argc, char *argv[])
         ros::spinOnce();
 
         message_flow_ptr->Run();
+
 
         rate.sleep();
     }

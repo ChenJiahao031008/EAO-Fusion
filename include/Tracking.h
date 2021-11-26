@@ -36,7 +36,7 @@
 
 #include <mutex>
 
-#include "YOLOv3SE.h"
+// #include "YOLOv3SE.h"
 #include "Converter.h"
 
 // cube slam.
@@ -59,7 +59,7 @@ class Map;
 class LocalMapping;
 class LoopClosing;
 class System;
-// class YOLOX;
+class YOLOX;
 
 
 class Tracking
@@ -78,7 +78,7 @@ public:
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
     void SetViewer(Viewer* pViewer);
-
+    void SetSemanticer(YOLOX* detector); //yolox
 	void SetSemiDenseMapping(ProbabilityMapping* pSemiDenseMapping);
 
     // Load new settings
@@ -213,8 +213,9 @@ protected:
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
-
 	ProbabilityMapping* mpSemiDenseMapping;
+    // NOTE
+    YOLOX* Semanticer;
 
     //ORB
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
@@ -246,8 +247,7 @@ protected:
     //Map
     Map* mpMap;
 
-    // // NOTE wu190321
-    // Semantic* Semanticer;
+
 
     //Calibration matrix
     cv::Mat mK;     // 相机内参.

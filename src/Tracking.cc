@@ -288,6 +288,11 @@ void Tracking::SetSemiDenseMapping(ProbabilityMapping *pSemiDenseMapping)
     mpSemiDenseMapping = pSemiDenseMapping;
 }
 
+void Tracking::SetSemanticer(YOLOX *detector)
+{
+    Semanticer = detector;
+}
+
 cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, const double &timestamp)
 {
     mImGray = imRectLeft;
@@ -335,7 +340,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     if (bSemanticOnline)
     {
-        // TODO send image to semantic thread.
+        Semanticer->InsertImage(imRGB);
     }
 
     mImGray = imRGB;
@@ -413,7 +418,13 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
         std::vector<Object> currentObjs;
         auto start = std::chrono::system_clock::now();
 
-        yolox_ptr_->Detect(rgb_imu, currentObjs);
+        // yolox_ptr_->Detect(rgb_imu);
+        // yolox_ptr->GetResult(currentObjs);
+        while (Semanticer->CheckResult())
+        {
+            Semanticer->GetResult(currentObjs);
+        }
+
         if (currentObjs.size() == 0)
         {
             std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
@@ -628,7 +639,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
     // TODO: 分线程更快速
     if (bSemanticOnline)
     {
-        // TODO send image to semantic thread.
+        Semanticer->InsertImage(im);
     }
 
     mImGray = im;
@@ -711,7 +722,12 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
         std::vector<Object> currentObjs;
         auto start = std::chrono::system_clock::now();
 
-        yolox_ptr_->Detect(rawImage, currentObjs);
+        // yolox_ptr_->Detect(rawImage, currentObjs);
+        while (Semanticer->CheckResult())
+        {
+            Semanticer->GetResult(currentObjs);
+        }
+
         if (currentObjs.size() == 0)
         {
             std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
@@ -1614,10 +1630,10 @@ void Tracking::UpdateLastFrame()
     int nPoints = 0;
     for (size_t j = 0; j < vDepthIdx.size(); j++)
     {
-        std::cout << "j: "<< j  << std::endl;
-        std::cout << vDepthIdx.size() << std::endl;
+        // std::cout << "j: "<< j  << std::endl;
+        // std::cout << vDepthIdx.size() << std::endl;
         int i = vDepthIdx[j].second;
-        std::cout << "i: " << i << std::endl;
+        // std::cout << "i: " << i << std::endl;
 
         bool bCreateNew = false;
 
@@ -1820,6 +1836,7 @@ bool Tracking::TrackWithMotionModel()
             y_max = image.rows;
 
         // the bounding box constructed by object feature points.
+        // notes: 视野范围内的特征点
         obj->mRectFeaturePoints = cv::Rect(x_min, y_min, x_max - x_min, y_max - y_min);
     }
     // construct bounding box by feature points END -----------------------------------
@@ -1832,7 +1849,7 @@ bool Tracking::TrackWithMotionModel()
     // 2. objects with too few points;
     // 3. objects with too few points and on the edge of the image;
     // 4. objects too large and take up more than half of the image;
-    // TODO and so on ......
+    // and so on ......
     // **********************************************************************************************
     // overlap with too many objects.
     for (size_t f = 0; f < objs_2d.size(); ++f)
@@ -2014,8 +2031,8 @@ bool Tracking::TrackWithMotionModel()
                 continue;
 
             // object appeared in the last 30 frames.
-
             if (mpMap->mvObjectMap[i]->mnLastAddID > mCurrentFrame.mnId - 30){
+                // notes: 物体投影到当前图像上
                 mpMap->mvObjectMap[i]->ComputeProjectRectFrame(image, mCurrentFrame);
             }
             else
@@ -2123,6 +2140,7 @@ bool Tracking::TrackWithMotionModel()
                 continue;
 
             // estimate only regular objects.
+            // TODO: 修改类别标签
             if (((objMap->mnClass == 73) || (objMap->mnClass == 64) || (objMap->mnClass == 65)
                 || (objMap->mnClass == 66) || (objMap->mnClass == 56)))
             {
@@ -2134,6 +2152,7 @@ bool Tracking::TrackWithMotionModel()
             }
 
             // step 10.7 project quadrics to the image (only for visualization).
+            // 除以2得到半轴
             cv::Mat axe = cv::Mat::zeros(3, 1, CV_32F);
             axe.at<float>(0) = mpMap->mvObjectMap[i]->mCuboid3D.lenth / 2;
             axe.at<float>(1) = mpMap->mvObjectMap[i]->mCuboid3D.width / 2;
@@ -2158,6 +2177,7 @@ bool Tracking::TrackWithMotionModel()
     } // data association END ----------------------------------------------------------------
 
     // Optimize frame pose with all matches
+    // 疑问：在哪里用的优化？
     Optimizer::PoseOptimization(&mCurrentFrame);
 
     // Discard outliers
@@ -2194,9 +2214,9 @@ bool Tracking::TrackLocalMap()
 {
     // We have an estimation of the camera pose and some map points tracked in the frame.
     // We retrieve the local map and try to find matches to points in the local map.
-
+    // Step 1：更新局部关键帧 mvpLocalKeyFrames 和局部地图点 mvpLocalMapPoints
     UpdateLocalMap();
-
+    // Step 2：筛选局部地图中新增的在视野范围内的地图点，投影到当前帧搜索匹配，得到更多的匹配关系
     SearchLocalPoints();
 
     // Optimize Pose
@@ -2479,8 +2499,11 @@ void Tracking::SearchLocalPoints()
             }
             else
             {
+                // 更新能观测到该点的帧数加1(被当前帧观测了)
                 pMP->IncreaseVisible();
+                // 标记该点被当前帧观测到
                 pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+                // 标记该点在后面搜索匹配时不被投影，因为已经有匹配了
                 pMP->mbTrackInView = false;
             }
         }
@@ -2497,13 +2520,14 @@ void Tracking::SearchLocalPoints()
         if (pMP->isBad())
             continue;
         // Project (this fills MapPoint variables for matching)
+        // 判断地图点是否在在当前帧视野内
         if (mCurrentFrame.isInFrustum(pMP, 0.5))
         {
             pMP->IncreaseVisible();
             nToMatch++;
         }
     }
-
+    // Step 3：如果需要进行投影匹配的点的数目大于0，就进行投影匹配，增加更多的匹配关系
     if (nToMatch > 0)
     {
         ORBmatcher matcher(0.8);
@@ -3009,6 +3033,7 @@ void Tracking::AssociateObjAndLines(vector<Object_2D *> objs_2d)
 // BRIEF [EAO] Initialize the object map.
 void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
 {
+    // notes：一个obj对应一个objMAP
     int nGoodObjId = -1;        // object id.
     for (auto &obj : objs_2d)
     {
@@ -3144,6 +3169,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
         cv::Mat Ryaw = Converter::toCvMat(REigen);
 
         // 8 vertices of the 3D box, world --> object frame.
+        // notes：巧妙的方法转换到object坐标系下
         cv::Mat corner_1 = Converter::toCvMat(objMap->mCuboid3D.corner_1_w) - Converter::toCvMat(objMap->mCuboid3D.cuboidCenter);
         cv::Mat corner_2 = Converter::toCvMat(objMap->mCuboid3D.corner_2_w) - Converter::toCvMat(objMap->mCuboid3D.cuboidCenter);
         cv::Mat corner_3 = Converter::toCvMat(objMap->mCuboid3D.corner_3_w) - Converter::toCvMat(objMap->mCuboid3D.cuboidCenter);
@@ -3217,6 +3243,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
             float dis_angle3 = abs(angle * 180/M_PI - angle3 * 180/M_PI);
 
             float th = 5.0;             // threshold of the angle.
+            // TODO: 替换成chair的最新编码
             if(objMap->mnClass == 56)   // chair.
             {
                 if((dis_angle2 < th) || (dis_angle3 < th))
@@ -3291,6 +3318,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
     }
 
     // step 4. scoring.
+    // notes: 公式14
     float fScore;
     fScore = ((float)numMax / (float)nAllLineNum) * (1.0 - 0.1 * fErrorYaw);
     if(isinf(fScore))
@@ -3308,6 +3336,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
     bool bNewMeasure = true;
     for (auto &row : objMap->mvAngleTimesAndScore)
     {
+        // 当之前存在和sampleYaw大小一致的就做额外的处理：根据次数做权重
         if(row[0] == AngleTimesAndScore[0])
         {
             row[1] += 1.0;
@@ -3323,7 +3352,7 @@ void Tracking::SampleObjYaw(Object_Map* objMap)
         objMap->mvAngleTimesAndScore.push_back(AngleTimesAndScore);
     }
 
-    // step 5. rank.
+    // step 5. rank. 根据得分进行排序
     index = 1;
     std::sort(objMap->mvAngleTimesAndScore.begin(),objMap->mvAngleTimesAndScore.end(),VIC);
     // for (auto &row : objMap->mvAngleTimesAndScore)
@@ -3370,6 +3399,7 @@ cv::Mat Tracking::DrawQuadricProject(cv::Mat &im,
                                         };
 
     // draw params
+    // TODO: 改变配色
     cv::Scalar sc = colors[nClassid % 6];
 
     int nLineWidth = 2;
