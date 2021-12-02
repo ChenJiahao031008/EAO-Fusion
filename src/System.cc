@@ -322,11 +322,15 @@ void System::Shutdown()
 {
     mpLocalMapper->RequestFinish();
     mpLoopCloser->RequestFinish();
-    //mpViewer->RequestFinish();
+    mpSemanticer->RequestFinish();
     mpSemiDenseMapping->RequestFinish();
 
     // Wait until all thread have effectively stopped
-    while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished()  || mpLoopCloser->isRunningGBA() || !mpSemiDenseMapping->isFinished())
+    while (!mpLocalMapper->isFinished() ||
+           !mpLoopCloser->isFinished() ||
+           !mpSemanticer->isFinished() ||
+           !mpSemiDenseMapping->isFinished() ||
+            mpLoopCloser->isRunningGBA())
     {
         usleep(5000);
     }

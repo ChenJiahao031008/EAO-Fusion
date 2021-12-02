@@ -340,6 +340,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     if (bSemanticOnline)
     {
+        // unique_lock<mutex> lock(Semanticer->mMutexYOLOXQueue);
         Semanticer->InsertImage(imRGB);
     }
 
@@ -417,12 +418,12 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
         // TODO online detect.
         std::vector<Object> currentObjs;
         auto start = std::chrono::system_clock::now();
-
-        // yolox_ptr_->Detect(rgb_imu);
-        // yolox_ptr->GetResult(currentObjs);
-        while (Semanticer->CheckResult())
-        {
-            Semanticer->GetResult(currentObjs);
+        while (1){
+            if (Semanticer->CheckResult()){
+                Semanticer->GetResult(currentObjs);
+                break;
+            }
+            usleep(5000);
         }
 
         if (currentObjs.size() == 0)
@@ -723,9 +724,14 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
         auto start = std::chrono::system_clock::now();
 
         // yolox_ptr_->Detect(rawImage, currentObjs);
-        while (Semanticer->CheckResult())
+        while (1)
         {
-            Semanticer->GetResult(currentObjs);
+            if (Semanticer->CheckResult())
+            {
+                Semanticer->GetResult(currentObjs);
+                break;
+            }
+            usleep(5000);
         }
 
         if (currentObjs.size() == 0)

@@ -1,6 +1,7 @@
 #include "message_flow.h"
 #include <cassert>
 
+
 Eigen::Matrix4d INIT_POSE = Eigen::Matrix4d::Identity();
 
 MessageFlow::MessageFlow(ros::NodeHandle &nh)
@@ -227,6 +228,13 @@ bool MessageFlow::ValidData()
 
     if (diff_time > 0.05)
         return false;
+
+    // // 初始时刻不准，扔掉
+    // if (count < 30){
+    //     count++;
+    //     return false;
+    // }
+
 
     cv_bridge::CvImagePtr cvImgPtr, cvDepthPtr;
     try

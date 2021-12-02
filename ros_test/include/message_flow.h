@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 14:29:27
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-11-26 11:28:23
+ * @LastEditTime: 2021-12-02 14:36:35
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/message_flow.h
  */
@@ -53,6 +53,7 @@ private:
     bool initIMUFlag;
     bool rosBagFlag;
     int gravity_aixs = 3;
+    int count = 0;
     // 判断传感器类型的标志
     std::string sensor;
     // 与图像进行同步的IMU数据缓存队列
