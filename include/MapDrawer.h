@@ -61,6 +61,9 @@ private:
     cv::Mat mCameraPose;
 
     std::mutex mMutexCamera;
+
+    std::string frontPath;
+    float frontSize;
 };
 
 } //namespace ORB_SLAM
