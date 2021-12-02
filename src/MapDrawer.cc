@@ -41,6 +41,8 @@ MapDrawer::MapDrawer(Map* pMap, const string &strSettingPath):mpMap(pMap)
     mPointSize = fSettings["Viewer.PointSize"];
     mCameraSize = fSettings["Viewer.CameraSize"];
     mCameraLineWidth = fSettings["Viewer.CameraLineWidth"];
+    // frontPath = "/home/chen/catkin_ws/src/EAO-SLAM/ros_test/config/Anonymous-Pro.ttf";
+    // frontSize = 20.0;
 }
 
 void MapDrawer::DrawMapPoints()
@@ -627,6 +629,14 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
                     glVertex3f(-lenth, width, -height);     // 4
                     glVertex3f(-lenth, width, height);      // 8
                 }
+
+                std::string str = class_names[Obj->mnClass];
+                pangolin::GlText m_gltext = pangolin::GlFont::I().Text(str.c_str());
+                m_gltext.Draw(
+                    (GLfloat)(Obj->mCenter3D.at<float>(0)),
+                    (GLfloat)(Obj->mCenter3D.at<float>(1)),
+                    (GLfloat)(Obj->mCenter3D.at<float>(2)));
+
                 glEnd();
                 glPopMatrix();
             }
@@ -694,14 +704,23 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
             sc = cv::Scalar(0, 255, 0);
 
             // front
-            // // pangolin::GlFont *text_font = new pangolin::GlFont(frontPath, frontSize); //需要先去网上下载字体
             std::string str = class_names[Obj->mnClass];
+
+            // case 1
             pangolin::GlText m_gltext = pangolin::GlFont::I().Text(str.c_str());
             m_gltext.Draw(
                 (GLfloat)(Twq.at<float>(0, 3)),
                 (GLfloat)(Twq.at<float>(1, 3)),
                 (GLfloat)(Twq.at<float>(2, 3) + height/2.0));
-            // // text_font->Text("text").Draw(0.0, 0.0, 0.0); //参数为xyz坐标
+
+
+            // case 2
+            // // pangolin::GlFont *text_font = new pangolin::GlFont(frontPath, frontSize);
+            // auto text_font = std::make_unique<pangolin::GlFont>(frontPath, frontSize);
+            // text_font->Text(str.c_str()).Draw(
+            //     (GLfloat)(Twq.at<float>(0, 3)),
+            //     (GLfloat)(Twq.at<float>(1, 3) + width/2.0),
+            //     (GLfloat)(Twq.at<float>(2, 3) + height/2.0)); //参数为xyz坐标
 
             // add to display list
             glPushMatrix();
