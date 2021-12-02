@@ -367,10 +367,11 @@ void YOLOX::DoInference(IExecutionContext &context, float *input, float *output,
 
 void YOLOX::Detect()
 {
-    // objects.clear();
-
-    frame = IMGQueue.front();
-    IMGQueue.pop_front();
+    {
+        unique_lock<mutex> lock(mMutexYOLOXQueue);
+        frame = IMGQueue.front();
+        IMGQueue.clear();
+    }
     std::vector<Object> objects;
 
     if (frame.empty())
@@ -397,15 +398,21 @@ void YOLOX::Detect()
     DecodeOutputs(prob, objects, scale, img_w, img_h);
     // DrawObjects(frame, objects);
     delete[] blob;
+    // std::cout << "objects.size() : " << objects.size() << std::endl;
 
-    ResQueue.push_back(objects);
+    {
+        unique_lock<mutex> lock(mMutexResQueue);
+        ResQueue.push_back(objects);
+        // std::cout << "ResQueue.size() : " << ResQueue.size() << std::endl;
+    }
+
 }
 
 void YOLOX::GetResult(std::vector<Object> &output)
 {
     unique_lock<mutex> lock(mMutexResQueue);
     output = ResQueue.front();
-    ResQueue.pop_front();
+    ResQueue.clear();
 }
 
 void YOLOX::Run()
@@ -418,12 +425,12 @@ void YOLOX::Run()
         if (CheckFrames())
         {
             Detect();
+        }else{
+            usleep(5000);
         }
 
         if (CheckFinish())
             break;
-
-        usleep(5000);
     }
 
     SetFinish();

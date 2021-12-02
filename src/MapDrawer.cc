@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 11/23/2019
@@ -18,6 +18,14 @@
 #include <mutex>
 
 #include "Object.h"
+// #include "FrameDrawer.h"
+
+// #define BACKWARD_HAS_DW 1
+// #include "backward.hpp"
+// namespace backward
+// {
+//     backward::SignalHandling sh;
+// }
 
 namespace ORB_SLAM2
 {
@@ -333,7 +341,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph)
             glMultMatrixf(Twc.ptr<GLfloat>(0));
 
             glLineWidth(mKeyFrameLineWidth);
-            
+
             // [EAO] created by objects.
             if(pKF->mbCreatedByObjs)
                 glColor3f(1.0f,0.0f,0.0f);
@@ -416,7 +424,7 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph)
 }
 
 // BRIEF [EAO-SLAM] draw objects.
-void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj, 
+void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
                            const string &flag,
                            const bool bShowBottle,  const bool bShowChair, const bool bShowTvmonitors,
                            const bool bShowKeyboard,const bool bShowMouse, const bool bShowBook,   const bool bShowBear)
@@ -429,7 +437,7 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
     for(size_t i = 0; i < vObjs.size(); ++i)
     {
         Object_Map* Obj = vObjs[i];
-        
+
         if((Obj->mObjectFrame.size() < 5) && (flag != "NA"))
             continue;
 
@@ -439,7 +447,7 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
         }
 
         id ++;
-        
+
         // Display a certain category of object.
         // cup.
         if(!bShowBottle && ((Obj->mnClass == 39) || (Obj->mnClass == 41) || (Obj->mnClass == 44) || (Obj->mnClass == 76)))
@@ -504,7 +512,7 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
         // *************************************
         //    STEP 1. [EAO-SLAM] Draw cubes.   *
         // *************************************
-        if(bCubeObj && ((Obj->mnClass == 73) || (Obj->mnClass == 64) || (Obj->mnClass == 65) 
+        if(bCubeObj && ((Obj->mnClass == 73) || (Obj->mnClass == 64) || (Obj->mnClass == 65)
                 || (Obj->mnClass == 66) || (Obj->mnClass == 56) || (Obj->mnClass == 72)))
         {
             bool bObjAsOrigin = true;
@@ -627,7 +635,8 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
         // ****************************************
         //    STEP 2. [EAO-SLAM] Draw quadrics.   *
         // ****************************************
-        if(QuadricObj && !((Obj->mnClass == 73) || (Obj->mnClass == 64) || (Obj->mnClass == 65) 
+
+        if(QuadricObj && !((Obj->mnClass == 73) || (Obj->mnClass == 64) || (Obj->mnClass == 65)
                 || (Obj->mnClass == 66) || (Obj->mnClass == 56) || (Obj->mnClass == 72)))
         {
             // half axial length.
@@ -683,6 +692,16 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
             // color
             cv::Scalar sc;
             sc = cv::Scalar(0, 255, 0);
+
+            // front
+            // // pangolin::GlFont *text_font = new pangolin::GlFont(frontPath, frontSize); //需要先去网上下载字体
+            std::string str = class_names[Obj->mnClass];
+            pangolin::GlText m_gltext = pangolin::GlFont::I().Text(str.c_str());
+            m_gltext.Draw(
+                (GLfloat)(Twq.at<float>(0, 3)),
+                (GLfloat)(Twq.at<float>(1, 3)),
+                (GLfloat)(Twq.at<float>(2, 3) + height/2.0));
+            // // text_font->Text("text").Draw(0.0, 0.0, 0.0); //参数为xyz坐标
 
             // add to display list
             glPushMatrix();

@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 05/16/2019
@@ -54,15 +54,15 @@ protected:
 
     void DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText);
 
-    cv::Mat DrawYoloInfo(cv::Mat &im, bool bText);
+    cv::Mat DrawYoloInfo(cv::Mat &im, bool bText = true);
 
-	std::vector<cv::Scalar> colors = {  cv::Scalar(0,0,255),      
-                                        cv::Scalar(0,255,0),      
-                                        cv::Scalar(255,0,0),      
+	std::vector<cv::Scalar> colors = {  cv::Scalar(0,0,255),
+                                        cv::Scalar(0,255,0),
+                                        cv::Scalar(255,0,0),
                                         cv::Scalar(0,255,255)
                                         };
 
-    std::vector<std::string> class_names = { 
+    std::vector<std::string> class_names = {
                                         "person",
                                         "bicycle",
                                         "car",
@@ -147,8 +147,8 @@ protected:
 
     // Info of the frame to be drawn
     cv::Mat mIm;
-    cv::Mat mRGBIm; 
-    cv::Mat mQuadricIm; 
+    cv::Mat mRGBIm;
+    cv::Mat mQuadricIm;
 
     int N;
     vector<cv::KeyPoint> mvCurrentKeys;

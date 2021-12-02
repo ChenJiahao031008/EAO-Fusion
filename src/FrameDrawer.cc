@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 05/16/2019
@@ -15,6 +15,7 @@
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/opencv.hpp>
 
 #include<mutex>
 
@@ -113,7 +114,7 @@ cv::Mat FrameDrawer::DrawFrame()
                             int bottom = box.y+box.height;
 
                             if((vCurrentKeys[i].pt.x > left)&&(vCurrentKeys[i].pt.x < right)
-                                &&(vCurrentKeys[i].pt.y > top)&&(vCurrentKeys[i].pt.y < bottom)) 
+                                &&(vCurrentKeys[i].pt.y > top)&&(vCurrentKeys[i].pt.y < bottom))
                             {
                                 cv::circle(im, vCurrentKeys[i].pt, 2, colors[box.m_class%4], -1);
 
@@ -128,7 +129,7 @@ cv::Mat FrameDrawer::DrawFrame()
                         // cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));
                         cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(255,0,255),-1);
                     }
-                    
+
                     mnTracked++;
                 }
                 else // This is match to a "visual odometry" MapPoint created in the last frame
@@ -142,7 +143,7 @@ cv::Mat FrameDrawer::DrawFrame()
     }
 
     // yolo detection.
-    DrawYoloInfo(im, false);
+    DrawYoloInfo(im, true);
 
     //return imWithInfo;
     return im;
@@ -214,18 +215,18 @@ void FrameDrawer::DrawTextInfo(cv::Mat &im, int nState, cv::Mat &imText)
 // BRIEF draw yolo text.
 cv::Mat FrameDrawer::DrawYoloInfo(cv::Mat &im, bool bText)
 {
-    for (auto&box : Dboxes) 
+    for (auto&box : Dboxes)
     {
         if(bText)
         {
-            cv::putText(im,                             
-                        class_names[box.m_class],       
-                        box.tl(),                       
-                        cv::FONT_HERSHEY_DUPLEX  ,      
-                        1.0,                            
-                        colors[box.m_class%4],          
-                        // cv::Scalar(0,255,0), 
-                        2);                             
+            cv::putText(im,
+                        class_names[box.m_class],
+                        box.tl(),
+                        cv::FONT_HERSHEY_DUPLEX  ,
+                        1.0,
+                        colors[box.m_class%4],
+                        // cv::Scalar(0,255,0),
+                        2);
         }
 
         // draw lines in the box
@@ -239,10 +240,10 @@ cv::Mat FrameDrawer::DrawYoloInfo(cv::Mat &im, bool bText)
                 int B = ( rand() % (int) ( 255 + 1 ) );
                 lineColor = cv::Scalar( R, G, B );
 
-                cv::line(   im, 
-                            cv::Point2f( DObjsLines[obj_id](line_id, 0), DObjsLines[obj_id](line_id, 1)), 
-                            cv::Point2f( DObjsLines[obj_id](line_id, 2), DObjsLines[obj_id](line_id, 3)), 
-                            cv::Scalar( 255, 255, 0 ), 
+                cv::line(   im,
+                            cv::Point2f( DObjsLines[obj_id](line_id, 0), DObjsLines[obj_id](line_id, 1)),
+                            cv::Point2f( DObjsLines[obj_id](line_id, 2), DObjsLines[obj_id](line_id, 3)),
+                            cv::Scalar( 255, 255, 0 ),
                             //lineColor,
                             2.0);
             }
@@ -253,6 +254,9 @@ cv::Mat FrameDrawer::DrawYoloInfo(cv::Mat &im, bool bText)
                         box,
                         colors[box.m_class%4],
                         2);
+
+        // cv::putText( im, text, cv::Point(x, y + label_size.height),
+        //             cv::FONT_HERSHEY_SIMPLEX, 0.4, colors[box.m_class % 4], 1);
     }
 
     return im;
