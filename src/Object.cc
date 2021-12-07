@@ -2228,7 +2228,6 @@ void Object_Map::DealTwoOverlapObjs(Object_Map *OverlapObj, float overlap_x, flo
         }
     }
 
-    // TODO case ...... and so on ......
 } // DealTwoOverlapObjs() END ---------------------------------------------------------------
 
 

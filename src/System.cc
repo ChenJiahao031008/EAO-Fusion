@@ -95,17 +95,6 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     mpFrameDrawer = new FrameDrawer(mpMap);
     mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
 
-    // [EAO] online / offline yolo detection.
-    if(bSemanticOnline)
-    {
-        std::cout << "Online Semantic mode" << std::endl;
-        // TODO Load network
-    }
-    else
-    {
-        std::cout << "Offline Semantic mode" << std::endl;
-    }
-
     //Initialize the Tracking thread
     //(it will live in the main thread of execution, the one that called this constructor)
     mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,

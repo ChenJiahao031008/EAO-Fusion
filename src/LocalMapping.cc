@@ -813,7 +813,7 @@ void LocalMapping::MergePotentialAssObjs()
             continue;
 
         // if (Obj->mnLastAddID == mCurrentFrame.mnId - 3)
-        // TODO：localmap thread
+        // localmap thread
         if (Obj->mObjectFrame.size() >= 10)     // todo: when to do ?
         {
             if(Obj->mReObj.size() > 0)

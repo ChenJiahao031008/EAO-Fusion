@@ -1,0 +1,15 @@
+<launch>
+    <node pkg="ros_evo"  type="ros_node"  name="ros_node"  output="screen">
+        <!-- <param name="sensor" value="MONO"/> -->
+        <param name="sensor" value="RGBD"/>
+        <param name="online" value="true" type="bool"/>
+        <param name="rosbag" value="false" type="bool"/>
+        <!-- <param name="rosbag" value="true" type="bool"/> -->
+        <param name="gravity_aixs" value="2" type="int"/>
+        <!-- <param name="gravity_aixs" value="3" type="int"/> -->
+
+    </node>
+
+    <include file="$(find realsense2_camera)/launch/rs_aligned_depth.launch"/>
+
+</launch>
