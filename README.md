@@ -1,6 +1,12 @@
 # EAO-Fusion
 **目标：试图调整 EAO-SLAM 使其能够在RGBD-IMU系统上实时可用**
 
+目前不再更新非ros版本，后续继续补充
+
+### 0 可视化结果
+
+<img src="README.assets/image0.png" style="zoom: 50%;" />
+
 ### 1 过程记录
 
 **已完成部分：**
@@ -13,15 +19,19 @@
 + 将传感器的仅限于单目改为支持RGBD，并完成ROS接口的封装；
 + 同步后IMU代替真值进行垂直方向上的约束
 + 语义标签可视化，并在pangolin上显示语义标签（很遗憾不能修改字体大小，不知为何会报错）
++ 学习pangolin的二次曲面可视化，并为二次曲面增加立体边框和指向轴，更加美观
 
 **正在进行的修改：**
 
 + 作者部分代码和论文对不上，正在修复
++ 增加平面约束，参考北航大佬的论文 [Object-oriented SLAM using Quadrics and Symmetry Properties for Indoor Environments]
 
 **未完成部分：**
 
-+ 可以微调下数据集，使其对室内环境更加友好
-+ 加入多传感器融合过程，主要以IMU为主，看情况是否加入编码器
++ 可以微调下YOLOX模块，使其对室内环境更加友好
++ 在RGBD下尝试单帧初始化
++ 试图融合层次化物体建模
++ ~~加入多传感器融合过程，主要以IMU为主，看情况是否加入编码器~~
 
 ### 2 环境构建
 
@@ -34,3 +44,4 @@ Pangolin: 0.6
 rapidjson: 1.1.0
 ```
 
+另外由于借助了YOLOX的推理系统，因此安装了cude和tensorRT，可根据需求自己进行调整（CMakeLists.txt）

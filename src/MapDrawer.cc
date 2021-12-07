@@ -488,28 +488,8 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
         }
 
         // color.
-        if(i % 10 == 0)
-            glColor3f(1.0,0.0,0.0);
-        else if(i % 10 == 1)
-            glColor3f(0.0,1.0,0.0);
-        else if(i % 10 == 2)
-            glColor3f(0.0,0.0,1.0);
-        else if(i % 10 == 3)
-            glColor3f(0.5,0.0,0.0);
-        else if(i % 10 == 4)
-            glColor3f(0.0,0.5,0.0);
-        else if(i % 10 == 5)
-            glColor3f(0.0,0.0,0.5);
-        else if(i % 10 == 6)
-            glColor3f(1.0,1.0,0);
-        else if(i % 10 == 7)
-            glColor3f(1.0,0,1.0);
-        else if(i % 10 == 8)
-            glColor3f(0.5,0.5,0.0);
-        else if(i % 10 == 9)
-            glColor3f(0.5,0,0.5);
-
-        glLineWidth(mCameraLineWidth);
+        glColor3f(0.5,0,0.5);
+        glLineWidth(2);
 
         // *************************************
         //    STEP 1. [EAO-SLAM] Draw cubes.   *
@@ -696,6 +676,7 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
             Twq.at<float>(3, 3) = 1;
 
             // create a quadric.
+             //初始化二次曲面并创建一个指向二次曲面的指针
             GLUquadricObj *pObj = gluNewQuadric();
             cv::Mat Twq_t = Twq.t();
 
@@ -723,6 +704,10 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
             //     (GLfloat)(Twq.at<float>(2, 3) + height/2.0)); //参数为xyz坐标
 
             // add to display list
+            // glPushMatrix、glPopMatrix操作事实上就相当于栈里的入栈和出栈
+            // 将本次须要运行的缩放、平移等操作放在glPushMatrix和glPopMatrix之间。
+            // glPushMatrix()和glPopMatrix()的配对使用能够消除上一次的变换对本次变换的影响。
+            // 使本次变换是以世界坐标系的原点为參考点进行。
             glPushMatrix();
             glMultMatrixf(Twq_t.ptr<GLfloat >(0));
             glScalef(
@@ -730,15 +715,95 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
                     (GLfloat)(axe.at<float>(0,1)),
                     (GLfloat)(axe.at<float>(0,2))
                     );
-
+            // 二次曲面绘制风格：GLU_LINE直线模拟
             gluQuadricDrawStyle(pObj, GLU_LINE);
+            // 在二次曲面的表面创建平滑的法向量:GLU_NONE(否)
             gluQuadricNormals(pObj, GLU_NONE);
+            // 采用立即模式绘制的数据
             glBegin(GL_COMPILE);
+            // 指针，半径，纬线细分面，经线细分面（数字越大越平滑）
             gluSphere(pObj, 1., 15, 10);
-
             glEnd();
             glPopMatrix();
-        // draw quadrics END ---------------------------------------------------------------------
+
+            // _______________________________ //
+            // 外包围框
+            glColor3f(1.0, 0, 0.0);
+            glLineWidth(2);
+            glPushMatrix();
+            glMultMatrixf(Twq_t.ptr<GLfloat>(0));
+            // draw object center.
+            glPointSize(8);
+
+            {
+                glBegin(GL_LINES);
+
+                glVertex3f(-lenth, -width, -height); // 1
+                glVertex3f(lenth, -width, -height);  // 2
+
+                glVertex3f(lenth, -width, -height); // 2
+                glVertex3f(lenth, width, -height);  // 3
+
+                glVertex3f(lenth, width, -height);  // 3
+                glVertex3f(-lenth, width, -height); // 4
+
+                glVertex3f(-lenth, width, -height);  // 4
+                glVertex3f(-lenth, -width, -height); // 1
+
+                glVertex3f(-lenth, -width, height); // 5
+                glVertex3f(lenth, -width, height);  // 6
+
+                glVertex3f(lenth, -width, height); // 6
+                glVertex3f(lenth, width, height);  // 7
+
+                glVertex3f(lenth, width, height);  // 7
+                glVertex3f(-lenth, width, height); // 8
+
+                glVertex3f(-lenth, width, height);  // 8
+                glVertex3f(-lenth, -width, height); // 5
+
+                glVertex3f(-lenth, -width, -height); // 1
+                glVertex3f(-lenth, -width, height);  // 5
+
+                glVertex3f(lenth, -width, -height); // 2
+                glVertex3f(lenth, -width, height);  // 6
+
+                glVertex3f(lenth, width, -height); // 3
+                glVertex3f(lenth, width, height);  // 7
+
+                glVertex3f(-lenth, width, -height); // 4
+                glVertex3f(-lenth, width, height);  // 8
+
+                glEnd();
+            }
+
+            {
+                float axisLen = 1.0;
+                glLineWidth(5);
+                glColor3f(1.0, 0.0, 0.0); // red x
+                glBegin(GL_LINES);
+                glVertex3f(0.0, 0.0f, 0.0f);
+                glVertex3f(lenth + axisLen, 0.0f, 0.0f);
+                glEnd();
+
+                glColor3f(0.0, 1.0, 0.0); // green y
+                glBegin(GL_LINES);
+                glVertex3f(0.0, 0.0f, 0.0f);
+                glVertex3f(0.0, width + axisLen, 0.0f);
+
+                glEnd();
+
+                glColor3f(0.0, 0.0, 1.0); // blue z
+                glBegin(GL_LINES);
+                glVertex3f(0.0, 0.0f, 0.0f);
+                glVertex3f(0.0, 0.0f, height + axisLen);
+
+                glEnd();
+            }
+
+            glPopMatrix();
+
+            // draw quadrics END ---------------------------------------------------------------------
         }
     }
 } // draw objects END ----------------------------------------------------------------------------
