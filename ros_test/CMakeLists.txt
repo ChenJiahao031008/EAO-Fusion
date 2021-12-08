@@ -202,9 +202,13 @@ target_link_libraries(${PROJECT_NAME}_lib
 )
 
 
-add_executable(ros_node app/ros_node.cpp)
-add_dependencies(ros_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(ros_node ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
+add_executable(ros_rgbd_imu app/ros_rgbd_imu.cpp)
+add_dependencies(ros_rgbd_imu ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ros_rgbd_imu ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
+
+add_executable(ros_rgbd app/ros_rgbd.cpp)
+add_dependencies(ros_rgbd ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ros_rgbd ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../tools)
 add_executable(bin_vocabulary

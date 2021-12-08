@@ -4,7 +4,11 @@
 
 Eigen::Matrix4d INIT_POSE = Eigen::Matrix4d::Identity();
 
-MessageFlow::MessageFlow(ros::NodeHandle &nh)
+// ---------------------------------------------------------------------- //
+// ----------------          [WITH IMU INFO]             ---------------- //
+// ---------------------------------------------------------------------- //
+
+RGBDIMessageFlow::RGBDIMessageFlow(ros::NodeHandle &nh)
 {
     // 初始化图像
     image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 1000);
@@ -36,11 +40,11 @@ MessageFlow::MessageFlow(ros::NodeHandle &nh)
     ROS_INFO("SUCCESS TO READ PARAM!");
 }
 
-MessageFlow::~MessageFlow()
+RGBDIMessageFlow::~RGBDIMessageFlow()
 {
 }
 
-void MessageFlow::Run()
+void RGBDIMessageFlow::Run()
 {
     if (!ReadData())
         return;
@@ -76,7 +80,7 @@ void MessageFlow::Run()
     }
 }
 
-bool MessageFlow::ReadData()
+bool RGBDIMessageFlow::ReadData()
 {
     image_sub_ptr_->ParseData(image_color_data_buff_, image_depth_data_buff_);
     // int beforeBuffSize = unsynced_imu_data_buff_.size();
@@ -119,7 +123,7 @@ bool MessageFlow::ReadData()
     return true;
 }
 
-bool MessageFlow::IMUSyncData(
+bool RGBDIMessageFlow::IMUSyncData(
     std::deque<sensor_msgs::Imu> &UnsyncedDataBuff,
     std::deque<sensor_msgs::Imu> &UnsyncedData,
     std::deque<sensor_msgs::Imu> &SyncedData,
@@ -192,7 +196,7 @@ bool MessageFlow::IMUSyncData(
     return true;
 }
 
-bool MessageFlow::HasData()
+bool RGBDIMessageFlow::HasData()
 {
     if (image_color_data_buff_.size() == 0)
         return false;
@@ -203,7 +207,7 @@ bool MessageFlow::HasData()
     return true;
 }
 
-bool MessageFlow::ValidData()
+bool RGBDIMessageFlow::ValidData()
 {
     double image_time;
     if (rosBagFlag){
@@ -256,7 +260,7 @@ bool MessageFlow::ValidData()
     return true;
 }
 
-bool MessageFlow::InitIMU(){
+bool RGBDIMessageFlow::InitIMU(){
     if (initIMUFlag)
         return true;
     Eigen::Vector3d initIMU(synced_imu_data_.linear_acceleration.x, synced_imu_data_.linear_acceleration.y, synced_imu_data_.linear_acceleration.z);
@@ -296,7 +300,128 @@ bool MessageFlow::InitIMU(){
     return true;
 }
 
-void MessageFlow::SaveTrajectory(){
+void RGBDIMessageFlow::SaveTrajectory(){
+    slam_ptr_->SaveTrajectoryTUM("CameraTrajectory.txt");
+    slam_ptr_->Shutdown();
+}
+
+// ---------------------------------------------------------------------- //
+// ----------------        [WITHOUT IMU INFO]            ---------------- //
+// ---------------------------------------------------------------------- //
+RGBDMessageFlow::RGBDMessageFlow(ros::NodeHandle &nh)
+{
+    // 初始化图像
+    image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 1000);
+
+    // 读取参数文件
+    const std::string VocFile = WORK_SPACE_PATH + "/Vocabulary/ORBvoc.bin";
+    const std::string YamlFile = WORK_SPACE_PATH + "/ros_test/config/D435i.yaml";
+
+    // 读取launch文件中的参数
+    ros::param::param<std::string>("~sensor", sensor, "RGBD");
+    ros::param::param<bool>("~online", semanticOnline, "true");
+    ros::param::param<bool>("~rosbag", rosBagFlag, "false");
+
+
+    // 系统初始化
+    if (sensor == "RGBD")
+        slam_ptr_ = std::make_shared<ORB_SLAM2::System>(VocFile, YamlFile, "Full", ORB_SLAM2::System::RGBD, true, semanticOnline);
+    else if (sensor == "MONO")
+        slam_ptr_ = std::make_shared<ORB_SLAM2::System>(VocFile, YamlFile, "Full", ORB_SLAM2::System::MONOCULAR, true, semanticOnline);
+    else{
+        std::cerr << "[ERROR] ONLY SUPPORT RGBD OR MONOCULAR! " << std::endl;
+        return;
+    }
+
+    ROS_INFO("SUCCESS TO READ PARAM!");
+}
+
+RGBDMessageFlow::~RGBDMessageFlow()
+{
+}
+
+void RGBDMessageFlow::Run()
+{
+    if (!ReadData())
+        return;
+
+    while (HasData())
+    {
+        if (!ValidData())
+            continue;
+        double current_time = ros::Time::now().toSec();
+        // double current_time = current_image_color_data_.header.stamp.toSec();
+
+        if (sensor == "RGBD")
+            slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);
+        else if (sensor == "MONO")
+            slam_ptr_->TrackMonocular(cvColorImgMat, current_time);
+    }
+}
+
+bool RGBDMessageFlow::ReadData()
+{
+    image_sub_ptr_->ParseData(image_color_data_buff_, image_depth_data_buff_);
+    if (image_color_data_buff_.size() == 0 || image_depth_data_buff_.size() == 0)
+        return false;
+    return true;
+}
+
+bool RGBDMessageFlow::HasData()
+{
+    if (image_color_data_buff_.size() == 0)
+        return false;
+    if (image_depth_data_buff_.size() == 0)
+        return false;
+    return true;
+}
+
+bool RGBDMessageFlow::ValidData()
+{
+    double image_time;
+    if (rosBagFlag)
+    {
+        current_image_color_data_ = image_color_data_buff_.front();
+        current_image_depth_data_ = image_depth_data_buff_.front();
+        image_color_data_buff_.pop_front();
+        image_depth_data_buff_.pop_front();
+    }
+    else
+    {
+        current_image_color_data_ = image_color_data_buff_.back();
+        current_image_depth_data_ = image_depth_data_buff_.back();
+        image_color_data_buff_.clear();
+        image_depth_data_buff_.clear();
+    }
+
+    // // 初始时刻不准，扔掉
+    // if (count < 30){
+    //     count++;
+    //     return false;
+    // }
+
+    cv_bridge::CvImagePtr cvImgPtr, cvDepthPtr;
+    try
+    {
+        cvImgPtr = cv_bridge::toCvCopy(current_image_color_data_, sensor_msgs::image_encodings::BGR8);
+        cvDepthPtr = cv_bridge::toCvCopy(current_image_depth_data_, sensor_msgs::image_encodings::TYPE_16UC1);
+    }
+    catch (cv_bridge::Exception e)
+    {
+        ROS_ERROR_STREAM("CV_bridge Exception:" << e.what());
+        return false;
+    }
+
+    // cv::cvtColor(cvColorImgMat,CurrentGray,CV_BGR2GRAY);
+
+    cvColorImgMat = cvImgPtr->image;
+    cvDepthMat = cvDepthPtr->image;
+
+    return true;
+}
+
+void RGBDMessageFlow::SaveTrajectory()
+{
     slam_ptr_->SaveTrajectoryTUM("CameraTrajectory.txt");
     slam_ptr_->Shutdown();
 }
