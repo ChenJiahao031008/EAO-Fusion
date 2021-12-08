@@ -451,21 +451,21 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
         id ++;
 
         // Display a certain category of object.
-        // cup.
-        if(!bShowBottle && ((Obj->mnClass == 39) || (Obj->mnClass == 41) || (Obj->mnClass == 44) || (Obj->mnClass == 76)))
-        {
-            continue;
-        }
-        // chair.
-        if(!bShowChair && ((Obj->mnClass == 56) || (Obj->mnClass == 69) || (Obj->mnClass == 72) || (Obj->mnClass == 75)))
-        {
-            continue;
-        }
-        // tvmonitor.
-        if(!bShowTvmonitors && (Obj->mnClass == 62))
-        {
-            continue;
-        }
+        // // cup.
+        // if(!bShowBottle && ((Obj->mnClass == 39) || (Obj->mnClass == 41) || (Obj->mnClass == 44) || (Obj->mnClass == 76)))
+        // {
+        //     continue;
+        // }
+        // // chair.
+        // if(!bShowChair && ((Obj->mnClass == 56) || (Obj->mnClass == 69) || (Obj->mnClass == 72) || (Obj->mnClass == 75)))
+        // {
+        //     continue;
+        // }
+        // // tvmonitor.
+        // if(!bShowTvmonitors && (Obj->mnClass == 62))
+        // {
+        //     continue;
+        // }
         // keyboard.
         if(!bShowKeyboard && (Obj->mnClass == 66))
         {
@@ -476,11 +476,11 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
         {
             continue;
         }
-        // book.
-        if(!bShowBook && (Obj->mnClass == 73))
-        {
-            continue;
-        }
+        // // book.
+        // if(!bShowBook && (Obj->mnClass == 73))
+        // {
+        //     continue;
+        // }
         // bear.
         if(!bShowBear && (Obj->mnClass == 77))
         {
@@ -497,137 +497,136 @@ void MapDrawer::DrawObject(const bool bCubeObj, const bool QuadricObj,
         if(bCubeObj && ((Obj->mnClass == 73) || (Obj->mnClass == 64) || (Obj->mnClass == 65)
                 || (Obj->mnClass == 66) || (Obj->mnClass == 56) || (Obj->mnClass == 72)))
         {
-            bool bObjAsOrigin = true;
+            // bool bObjAsOrigin = true;
 
-            // object center.
-            if(bObjAsOrigin)
-            {
-                cv::Mat Twobj_t = Converter::toCvMat(Obj->mCuboid3D.pose).t();
-                glPushMatrix();
-                glMultMatrixf(Twobj_t.ptr<GLfloat>(0));
-            }
+            // // object center.
+            // if(bObjAsOrigin)
+            // {
+            //     cv::Mat Twobj_t = Converter::toCvMat(Obj->mCuboid3D.pose).t();
+            //     glPushMatrix();
+            //     glMultMatrixf(Twobj_t.ptr<GLfloat>(0));
+            // }
 
-            // draw object center.
-            glPointSize(4*mPointSize);
-            glBegin(GL_POINTS);
-            if(bObjAsOrigin)
-                glVertex3f(0, 0, 0);
-            else
-                glVertex3f(Obj->mCenter3D.at<float>(0), Obj->mCenter3D.at<float>(1), Obj->mCenter3D.at<float>(2));
-            glEnd();
+            // // draw object center.
+            // glPointSize(4*mPointSize);
+            // glBegin(GL_POINTS);
+            // if(bObjAsOrigin)
+            //     glVertex3f(0, 0, 0);
+            // else
+            //     glVertex3f(Obj->mCenter3D.at<float>(0), Obj->mCenter3D.at<float>(1), Obj->mCenter3D.at<float>(2));
+            // glEnd();
 
-            // ******************************************
-            //                 7------6                 *
-            //                /|     /|                 *
-            //               / |    / |                 *
-            //              4------5  |                 *
-            //              |  3---|--2                 *
-            //              | /    | /                  *
-            //              0------1                    *
-            // ******************************************
+            // // ******************************************
+            // //                 7------6                 *
+            // //                /|     /|                 *
+            // //               / |    / |                 *
+            // //              4------5  |                 *
+            // //              |  3---|--2                 *
+            // //              | /    | /                  *
+            // //              0------1                    *
+            // // ******************************************
 
-            glBegin(GL_LINES);
-            if(bObjAsOrigin)
-            {
-                float lenth = Obj->mCuboid3D.lenth/2;
-                float width = Obj->mCuboid3D.width/2;
-                float height = Obj->mCuboid3D.height/2;
+            // glBegin(GL_LINES);
+            // if(bObjAsOrigin)
+            // {
+            //     float lenth = Obj->mCuboid3D.lenth/2;
+            //     float width = Obj->mCuboid3D.width/2;
+            //     float height = Obj->mCuboid3D.height/2;
 
-                if(Obj->mnClass == 0)
-                {
-                    glVertex3f(-lenth, -width, 0);      // 5
-                    glVertex3f(lenth, -width, 0);       // 6
+            //     if(Obj->mnClass == 0)
+            //     {
+            //         glVertex3f(-lenth, -width, 0);      // 5
+            //         glVertex3f(lenth, -width, 0);       // 6
 
-                    glVertex3f(lenth, -width, 0);       // 6
-                    glVertex3f(lenth, width, 0);        // 7
+            //         glVertex3f(lenth, -width, 0);       // 6
+            //         glVertex3f(lenth, width, 0);        // 7
 
-                    glVertex3f(lenth, width, 0);        // 7
-                    glVertex3f(-lenth, width, 0);       // 8
+            //         glVertex3f(lenth, width, 0);        // 7
+            //         glVertex3f(-lenth, width, 0);       // 8
 
-                    glVertex3f(-lenth, width, 0);       // 8
-                    glVertex3f(-lenth, -width, 0);      // 5
+            //         glVertex3f(-lenth, width, 0);       // 8
+            //         glVertex3f(-lenth, -width, 0);      // 5
 
 
-                    glVertex3f(-lenth, -width, -height);    // 1
-                    glVertex3f(-lenth, -width, 0);          // 5
+            //         glVertex3f(-lenth, -width, -height);    // 1
+            //         glVertex3f(-lenth, -width, 0);          // 5
 
-                    glVertex3f(lenth, -width, -height);     // 2
-                    glVertex3f(lenth, -width, 0);           // 6
+            //         glVertex3f(lenth, -width, -height);     // 2
+            //         glVertex3f(lenth, -width, 0);           // 6
 
-                    glVertex3f(lenth, width, height);       // 9
-                    glVertex3f(-lenth, width, height);      // 10
+            //         glVertex3f(lenth, width, height);       // 9
+            //         glVertex3f(-lenth, width, height);      // 10
 
-                    glVertex3f(lenth, width, -height);      // 3
-                    glVertex3f(lenth, width, height);       // 9
+            //         glVertex3f(lenth, width, -height);      // 3
+            //         glVertex3f(lenth, width, height);       // 9
 
-                    glVertex3f(-lenth, width, -height);     // 4
-                    glVertex3f(-lenth, width, height);      // 10
-                }
-                else
-                {
-                    // chair, fixed scale, for better visulazation.
-                    if(Obj->mnClass == 56)
-                    {
-                        lenth = 0.09;
-                        width = 0.08;
-                        height = 0.12;
-                    }
+            //         glVertex3f(-lenth, width, -height);     // 4
+            //         glVertex3f(-lenth, width, height);      // 10
+            //     }
+            //     else
+            //     {
+            //         // chair, fixed scale, for better visulazation.
+            //         if(Obj->mnClass == 56)
+            //         {
+            //             lenth = 0.09;
+            //             width = 0.08;
+            //             height = 0.12;
+            //         }
 
-                    glVertex3f(-lenth, -width, -height);    // 1
-                    glVertex3f(lenth, -width, -height);     // 2
+            //         glVertex3f(-lenth, -width, -height);    // 1
+            //         glVertex3f(lenth, -width, -height);     // 2
 
-                    glVertex3f(lenth, -width, -height);     // 2
-                    glVertex3f(lenth, width, -height);      // 3
+            //         glVertex3f(lenth, -width, -height);     // 2
+            //         glVertex3f(lenth, width, -height);      // 3
 
-                    glVertex3f(lenth, width, -height);      // 3
-                    glVertex3f(-lenth, width, -height);     // 4
+            //         glVertex3f(lenth, width, -height);      // 3
+            //         glVertex3f(-lenth, width, -height);     // 4
 
-                    glVertex3f(-lenth, width, -height);     // 4
-                    glVertex3f(-lenth, -width, -height);    // 1
+            //         glVertex3f(-lenth, width, -height);     // 4
+            //         glVertex3f(-lenth, -width, -height);    // 1
 
-                    glVertex3f(-lenth, -width, height);     // 5
-                    glVertex3f(lenth, -width, height);      // 6
+            //         glVertex3f(-lenth, -width, height);     // 5
+            //         glVertex3f(lenth, -width, height);      // 6
 
-                    glVertex3f(lenth, -width, height);      // 6
-                    glVertex3f(lenth, width, height);       // 7
+            //         glVertex3f(lenth, -width, height);      // 6
+            //         glVertex3f(lenth, width, height);       // 7
 
-                    glVertex3f(lenth, width, height);       // 7
-                    glVertex3f(-lenth, width, height);      // 8
+            //         glVertex3f(lenth, width, height);       // 7
+            //         glVertex3f(-lenth, width, height);      // 8
 
-                    glVertex3f(-lenth, width, height);      // 8
-                    glVertex3f(-lenth, -width, height);     // 5
+            //         glVertex3f(-lenth, width, height);      // 8
+            //         glVertex3f(-lenth, -width, height);     // 5
 
-                    glVertex3f(-lenth, -width, -height);    // 1
-                    glVertex3f(-lenth, -width, height);     // 5
+            //         glVertex3f(-lenth, -width, -height);    // 1
+            //         glVertex3f(-lenth, -width, height);     // 5
 
-                    glVertex3f(lenth, -width, -height);     // 2
-                    glVertex3f(lenth, -width, height);      // 6
+            //         glVertex3f(lenth, -width, -height);     // 2
+            //         glVertex3f(lenth, -width, height);      // 6
 
-                    glVertex3f(lenth, width, -height);      // 3
-                    glVertex3f(lenth, width, height);       // 7
+            //         glVertex3f(lenth, width, -height);      // 3
+            //         glVertex3f(lenth, width, height);       // 7
 
-                    glVertex3f(-lenth, width, -height);     // 4
-                    glVertex3f(-lenth, width, height);      // 8
-                }
+            //         glVertex3f(-lenth, width, -height);     // 4
+            //         glVertex3f(-lenth, width, height);      // 8
+            //     }
 
-                std::string str = class_names[Obj->mnClass];
-                pangolin::GlText m_gltext = pangolin::GlFont::I().Text(str.c_str());
-                m_gltext.Draw(
-                    (GLfloat)(Obj->mCenter3D.at<float>(0)),
-                    (GLfloat)(Obj->mCenter3D.at<float>(1)),
-                    (GLfloat)(Obj->mCenter3D.at<float>(2)));
+            //     std::string str = class_names[Obj->mnClass];
+            //     pangolin::GlText m_gltext = pangolin::GlFont::I().Text(str.c_str());
+            //     m_gltext.Draw(
+            //         (GLfloat)(Obj->mCenter3D.at<float>(0)),
+            //         (GLfloat)(Obj->mCenter3D.at<float>(1)),
+            //         (GLfloat)(Obj->mCenter3D.at<float>(2)));
 
-                glEnd();
-                glPopMatrix();
+            //     glEnd();
+            //     glPopMatrix();
             }
         } // draw cubes END ----------------------------------------------------------------------------
 
         // ****************************************
         //    STEP 2. [EAO-SLAM] Draw quadrics.   *
         // ****************************************
-
-        if(QuadricObj && !((Obj->mnClass == 73) || (Obj->mnClass == 64) || (Obj->mnClass == 65)
-                || (Obj->mnClass == 66) || (Obj->mnClass == 56) || (Obj->mnClass == 72)))
+        // if (QuadricObj && !((Obj->mnClass == 73) || (Obj->mnClass == 64) || (Obj->mnClass == 65) || (Obj->mnClass == 66) || (Obj->mnClass == 56) || (Obj->mnClass == 72)))
+        if(QuadricObj)
         {
             // half axial length.
             float lenth = Obj->mCuboid3D.lenth/2;

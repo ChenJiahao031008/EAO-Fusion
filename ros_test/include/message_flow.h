@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 14:29:27
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-12-02 14:36:35
+ * @LastEditTime: 2021-12-07 20:55:55
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/message_flow.h
  */
@@ -37,7 +37,7 @@
 // IMU相关
 #include <sensor_msgs/Imu.h>
 
-class MessageFlow
+class RGBDIMessageFlow
 {
 public:
     // 图像数据指针
@@ -73,9 +73,9 @@ private:
     // cv::Mat CurrentGray;
 
 public:
-    MessageFlow(ros::NodeHandle &nh);
+    RGBDIMessageFlow(ros::NodeHandle &nh);
 
-    ~MessageFlow();
+    ~RGBDIMessageFlow();
 
     void Run();
 
@@ -96,4 +96,42 @@ public:
     void SaveTrajectory();
 };
 
+class RGBDMessageFlow
+{
+public:
+    // 图像数据指针
+    std::shared_ptr<IMGSubscriber> image_sub_ptr_;
+    // ORB-SLAM指针
+    std::shared_ptr<ORB_SLAM2::System> slam_ptr_;
+
+private:
+    // 判断是否在线的标志
+    bool semanticOnline;
+    bool rosBagFlag;
+    int count = 0;
+    // 判断传感器类型的标志
+    std::string sensor;
+
+    std::deque<sensor_msgs::Image> image_color_data_buff_;
+    std::deque<sensor_msgs::Image> image_depth_data_buff_;
+    sensor_msgs::Image current_image_color_data_;
+    sensor_msgs::Image current_image_depth_data_;
+    cv::Mat cvColorImgMat, cvDepthMat;
+    // cv::Mat CurrentGray;
+
+public:
+    RGBDMessageFlow(ros::NodeHandle &nh);
+
+    ~RGBDMessageFlow();
+
+    void Run();
+
+    bool ReadData();
+
+    bool HasData();
+
+    bool ValidData();
+
+    void SaveTrajectory();
+};
 #endif
