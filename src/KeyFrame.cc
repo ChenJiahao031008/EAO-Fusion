@@ -63,7 +63,6 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
 
     //  compute some value for  semi dense  process
      cv::Mat image_mean,image_stddev,gradx,grady;
-     I_stddev = (float)sigmaI;
      image_mean.release();
      image_stddev.release();
 
@@ -81,10 +80,6 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
      depth_sigma_ = cv::Mat::zeros(im_.rows, im_.cols, CV_32F);
      SemiDensePointSets_ = cv::Mat::zeros(im_.rows, im_.cols, CV_32FC3);
 
-     mLines = cv::Mat::zeros(0,4,CV_32F);
-     mLineIndex = cv::Mat::ones(im_.rows, im_.cols, CV_32S) * (-1);
-     mLinesSeg = cv::Mat::zeros(0,4,CV_32F);
-     mLines3D = cv::Mat::zeros(0,6,CV_32F);
      mEdgeIndex = cv::Mat::ones(im_.rows, im_.cols, CV_32S) * (-1);
      mEdgeMap = NULL;
 }
@@ -829,8 +824,6 @@ void KeyFrame::Release()
     GradImg.release();
     GradTheta.release();
     SemiDensePointSets_.release();
-    mLines.release();
-    mLineIndex.release();
     mEdgeIndex.release();
 }
 

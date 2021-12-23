@@ -18,8 +18,8 @@
 #include <Eigen/Dense>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/opencv.hpp>
-#include<opencv2/core/core.hpp>
-#include<opencv2/features2d/features2d.hpp>
+#include <opencv2/core/core.hpp>
+#include <opencv2/features2d/features2d.hpp>
 
 #include "Viewer.h"
 #include "FrameDrawer.h"
@@ -39,16 +39,9 @@
 // #include "YOLOv3SE.h"
 #include "Converter.h"
 
-// cube slam.
-#include "detect_3d_cuboid/matrix_utils.h"
-#include <line_lbd/line_descriptor.hpp>
-#include <line_lbd/line_lbd_allclass.h>
-
 // YOLOX
 #include "Global.h"
 #include "YOLOX.h"
-
-class ProbabilityMapping;
 
 namespace ORB_SLAM2
 {
@@ -79,7 +72,6 @@ public:
     void SetLoopClosing(LoopClosing* pLoopClosing);
     void SetViewer(Viewer* pViewer);
     void SetSemanticer(YOLOX* detector); //yolox
-	void SetSemiDenseMapping(ProbabilityMapping* pSemiDenseMapping);
 
     // Load new settings
     // The focal lenght should be similar or scale prediction will fail when projecting points
@@ -91,9 +83,6 @@ public:
 
     // ] associate objects with points.
     void AssociateObjAndPoints(vector<Object_2D *> objs_2d);
-
-    // [EAO] associate objects with lines.
-    void AssociateObjAndLines(vector<Object_2D *> objs_2d);
 
     // [EAO] initialize the object map.
     void InitObjMap(vector<Object_2D *> objs_2d);
@@ -213,16 +202,12 @@ protected:
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
-	ProbabilityMapping* mpSemiDenseMapping;
     // NOTE
     YOLOX* Semanticer;
 
     //ORB
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
     ORBextractor* mpIniORBextractor;
-
-    // line.
-    line_lbd_detect* line_lbd_ptr;
 
     //BoW
     ORBVocabulary* mpORBVocabulary;

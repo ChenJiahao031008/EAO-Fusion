@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-10-29 10:08:20
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-12-07 21:05:52
+ * @LastEditTime: 2021-12-23 21:51:31
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/app/ros_rgbd_imu.cpp
  */
@@ -24,10 +24,7 @@ bool SaveOdometryCb(ros_evo::saveOdometry::Request &request, ros_evo::saveOdomet
 
 int main(int argc, char *argv[])
 {
-    google::InitGoogleLogging(argv[0]);
     WORK_SPACE_PATH = ros::package::getPath("ros_evo") + "/../";
-    FLAGS_log_dir = WORK_SPACE_PATH + "/LOG";
-    FLAGS_alsologtostderr = 1;
 
     ros::init(argc, argv, "ros_node");
     ros::NodeHandle nh;

@@ -23,15 +23,6 @@ Map::Map():mnMaxKFid(0)
     mfAngleTh = 0.8;
 }
 
-void Map::SetModeler(Modeler *pModeler)
-{
-    mpModeler=pModeler;
-}
-
-Modeler* Map::GetModeler()
-{
-    return mpModeler;
-}
 
 void Map::AddKeyFrame(KeyFrame *pKF)
 {
@@ -135,9 +126,6 @@ void Map::clear()
     mvpReferenceMapPoints.clear();
     mvpKeyFrameOrigins.clear();
 
-    if(mpModel != NULL)
-        mpModel->Release();
-    mpModel = NULL;
 
     // add plane ----------------------------
     for (set<MapPlane *>::iterator sit = mspMapPlanes.begin(), send = mspMapPlanes.end(); sit != send; sit++)
@@ -147,21 +135,6 @@ void Map::clear()
     // add plane end -----------------------
 }
 
-void Map::UpdateModel(Model* pModel)
-{
-    Model* pModelPrev;
-    {
-        unique_lock<mutex> lock(mMutexMap);
-        pModelPrev = mpModel;
-        mpModel = pModel;
-    }
-}
-
-Model* Map::GetModel()
-{
-    unique_lock<mutex> lock(mMutexMap);
-    return mpModel;
-}
 
 // add plane --------------------------------
 void Map::AddMapPlane(MapPlane *pMP)

@@ -12,9 +12,6 @@
 
 #include "Object.h"
 
-// cube slam
-#include "detect_3d_cuboid/object_3d_util.h"
-#include "detect_3d_cuboid/matrix_utils.h"
 
 #include <iostream>
 #include <stdint.h>

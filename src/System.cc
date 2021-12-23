@@ -108,10 +108,6 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR);
     mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
-    //Initialize
-    mpSemiDenseMapping = new ProbabilityMapping(mpMap);
-    mptSemiDense = new thread(&ProbabilityMapping::Run, mpSemiDenseMapping);
-
     // _____________________________yolox_______________________________
     std::string engineFile = WORK_SPACE_PATH + "/ros_test/config/model_trt.engine";
     mpSemanticer = new YOLOX(engineFile);
@@ -126,7 +122,6 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     mpTracker->SetViewer(mpViewer);
     mpTracker->SetLocalMapper(mpLocalMapper);
     mpTracker->SetLoopClosing(mpLoopCloser);
-	mpTracker->SetSemiDenseMapping(mpSemiDenseMapping);
 
     mpLocalMapper->SetTracker(mpTracker);
     mpLocalMapper->SetLoopCloser(mpLoopCloser);
@@ -142,51 +137,6 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     {
         mpSemanticer->SetTracker(mpTracker);
     }
-}
-
-cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp)
-{
-    if(mSensor!=STEREO)
-    {
-        cerr << "ERROR: you called TrackStereo but input sensor was not set to STEREO." << endl;
-        exit(-1);
-    }
-
-    // Check mode change
-    {
-        unique_lock<mutex> lock(mMutexMode);
-        if(mbActivateLocalizationMode)
-        {
-            mpLocalMapper->RequestStop();
-
-            // Wait until Local Mapping has effectively stopped
-            while(!mpLocalMapper->isStopped())
-            {
-                usleep(1000);
-            }
-
-            mpTracker->InformOnlyTracking(true);
-            mbActivateLocalizationMode = false;
-        }
-        if(mbDeactivateLocalizationMode)
-        {
-            mpTracker->InformOnlyTracking(false);
-            mpLocalMapper->Release();
-            mbDeactivateLocalizationMode = false;
-        }
-    }
-
-    // Check reset
-    {
-    unique_lock<mutex> lock(mMutexReset);
-    if(mbReset)
-    {
-        mpTracker->Reset();
-        mbReset = false;
-    }
-    }
-
-    return mpTracker->GrabImageStereo(imLeft,imRight,timestamp);
 }
 
 cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp)
@@ -230,10 +180,6 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     }
     }
 
-    // wait for semi dense thread
-    {
-        unique_lock<mutex> lock(mpSemiDenseMapping->mMutexSemiDense);
-    }
 
     return mpTracker->GrabImageRGBD(im, depthmap, timestamp, bSemanticOnline);
 }
@@ -280,11 +226,6 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     }
     }
 
-    // wait for semi dense thread
-    {
-        unique_lock<mutex> lock(mpSemiDenseMapping->mMutexSemiDense);
-    }
-
 
     return mpTracker->GrabImageMonocular(im, timestamp, bSemanticOnline);
 }
@@ -312,13 +253,11 @@ void System::Shutdown()
     mpLocalMapper->RequestFinish();
     mpLoopCloser->RequestFinish();
     mpSemanticer->RequestFinish();
-    mpSemiDenseMapping->RequestFinish();
 
     // Wait until all thread have effectively stopped
     while (!mpLocalMapper->isFinished() ||
            !mpLoopCloser->isFinished() ||
            !mpSemanticer->isFinished() ||
-           !mpSemiDenseMapping->isFinished() ||
             mpLoopCloser->isRunningGBA())
     {
         usleep(5000);

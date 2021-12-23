@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-10-29 10:08:18
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-12-22 15:59:45
+ * @LastEditTime: 2021-12-23 21:29:30
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/include/MapDrawer.h
  */
@@ -39,19 +39,14 @@ public:
 
     Map* mpMap;
 
-    void DrawSemiDense(const double sigma);
-    void DrawModel();
-    void DrawTriangles(pangolin::OpenGlMatrix &Twc);
     void DrawFrame();
 
     void DrawMapPoints();
     void DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph);
 
     // BRIEF [EAO-SLAM] draw objects.
-    void DrawObject(const bool bCubeObj, const bool QuadricObj,
-                    const string &flag,
-                    const bool bShowBottle,  const bool bShowChair, const bool bShowTvmonitors,
-                    const bool bShowKeyboard,const bool bShowMouse, const bool bShowBook,   const bool bShowBear);
+    void DrawObject(const bool QuadricObj,
+                    const string &flag);
 
     void DrawCurrentCamera(pangolin::OpenGlMatrix &Twc);
     void SetCurrentCameraPose(const cv::Mat &Tcw);

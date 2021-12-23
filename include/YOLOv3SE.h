@@ -31,20 +31,20 @@
 *	@date 2017-10-05
 *
 */
-class BoxSE : public cv::Rect 
+class BoxSE : public cv::Rect
 {
 public:
 	int m_class = -1;			// class id.
 	float m_score = 0.0F;		// probability.
 	std::string m_class_name;	// class name.
 
-	BoxSE() 
+	BoxSE()
 	{
 		m_class_name = "Unknown";
 	}
 
 	BoxSE(int c, float s, int _x, int _y, int _w, int _h, std::string name = "")
-		:m_class(c), m_score(s) 
+		:m_class(c), m_score(s)
 	{
 		this->x = _x;
 		this->y = _y;
@@ -52,7 +52,7 @@ public:
 		this->height = _h;
 		char const *lb[5] = { "th","st","nd","rd","th" };
 
-		if (name.length() == 0) 
+		if (name.length() == 0)
 		{
 			m_class_name = std::to_string(m_class) + lb[m_class < 4 ? m_class : 4] + " class";
 		}
@@ -95,47 +95,22 @@ public:
 		}
 	}
 
-	// BRIEF load network.
-	// void Create(std::string weights,std::string cfg,std::string names) 
-	// {
-	// 	printf("load……\n");
-	// 	this->m_network = YoloLoad(const_cast<char*>(cfg.c_str()), const_cast<char*>(weights.c_str()));
-	// 	if (names.length() > 0) 
-	// 	{
-	// 		std::fstream fin(names, std::ios::in);
-	// 		if (fin.is_open() == true) 
-	// 		{
-	// 			this->m_names.clear();
-	// 			while (fin.eof() == false) 
-	// 			{
-	// 				std::string str;
-	// 				std::getline(fin, str);
-	// 				if (str.length() > 0) 
-	// 				{
-	// 					this->m_names.push_back(str);
-	// 				}
-	// 			}
-	// 			fin.close();
-	// 		}
-	// 	}
-	// 	printf("load done……\n");
-	// }
 
-	bool Create(std::string weights,std::string cfg,std::string names) 
+	bool Create(std::string weights,std::string cfg,std::string names)
 	{
 		printf("load……\n");
 		this->m_network = YoloLoad(const_cast<char*>(cfg.c_str()), const_cast<char*>(weights.c_str()));
-		if (names.length() > 0) 
+		if (names.length() > 0)
 		{
 			std::fstream fin(names, std::ios::in);
-			if (fin.is_open() == true) 
+			if (fin.is_open() == true)
 			{
 				this->m_names.clear();
-				while (fin.eof() == false) 
+				while (fin.eof() == false)
 				{
 					std::string str;
 					std::getline(fin, str);
-					if (str.length() > 0) 
+					if (str.length() > 0)
 					{
 						this->m_names.push_back(str);
 					}
@@ -159,7 +134,7 @@ public:
 		}
 	}
 
-	std::vector<BoxSE> Detect(cv::Mat img, float threshold) 
+	std::vector<BoxSE> Detect(cv::Mat img, float threshold)
 	{
 		IplImage* iplimg = new IplImage(img);
 		std::vector<BoxSE> boxes= this->Detect(iplimg, threshold);
@@ -167,12 +142,12 @@ public:
 		return boxes;
 	}
 
-	std::vector<BoxSE> Detect(std::string file, float threshold) 
+	std::vector<BoxSE> Detect(std::string file, float threshold)
 	{
 		float result[6000] = { 0 };
 		int n = YoloDetectFromFile(const_cast<char*>(file.c_str()), this->m_network, threshold, result, 6000);
 		std::vector<BoxSE> boxes;
-		for (int i = 0; i < n; i++) 
+		for (int i = 0; i < n; i++)
 		{
 			BoxSE box;
 			box.m_class = static_cast<int>(result[i * 6 + 0]);
@@ -181,7 +156,7 @@ public:
 			box.y = static_cast<int>(result[i * 6 + 3]);
 			box.width = static_cast<int>(result[i * 6 + 4]);
 			box.height = static_cast<int>(result[i * 6 + 5]);
-			if (this->m_names.size() > 0) 
+			if (this->m_names.size() > 0)
 			{
 				box.m_class_name = this->m_names[box.m_class];
 			}
@@ -191,9 +166,9 @@ public:
 		return boxes;
 	}
 
-	std::vector<BoxSE> Detect(IplImage* img, float threshold) 
+	std::vector<BoxSE> Detect(IplImage* img, float threshold)
 	{
-		auto  ipl_to_image=[](IplImage* src)->image 
+		auto  ipl_to_image=[](IplImage* src)->image
 		{
 			image out;
 			out.data = 0;
@@ -216,13 +191,13 @@ public:
 
 		float result[6000] = { 0 };
 
-		image im = ipl_to_image(img);	
+		image im = ipl_to_image(img);
 
 		int n = YoloDetectFromImage(im.data, im.w, im.h, im.c, this->m_network, threshold, result, 6000);
 		free(im.data);
 		std::vector<BoxSE> boxes;
 		// NOTE save as std::vector<BoxSE> format.
-		for (int i = 0; i < n; i++) 
+		for (int i = 0; i < n; i++)
 		{
 			BoxSE box;
 			box.m_class = static_cast<int>(result[i * 6 + 0]);
@@ -231,7 +206,7 @@ public:
 			box.y = static_cast<int>(result[i * 6 + 3]);
 			box.width = static_cast<int>(result[i * 6 + 4]);
 			box.height = static_cast<int>(result[i * 6 + 5]);
-			if (this->m_names.size() > 0) 
+			if (this->m_names.size() > 0)
 			{
 				box.m_class_name = this->m_names[box.m_class];
 			}
@@ -243,7 +218,7 @@ public:
 		return boxes;
 	}
 
-	std::vector<BoxSE> GroundTruth(std::string image_file) 
+	std::vector<BoxSE> GroundTruth(std::string image_file)
 	{
 		std::vector<BoxSE> ret;
 		std::string txt_file = image_file.substr(0, image_file.find_last_of(".")) + ".txt";

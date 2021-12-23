@@ -1,5 +1,6 @@
 Examples/Monocular/mono_tum
 Examples/RGB-D/rgbd_tum
+Examples/
 KeyFrameTrajectory.txt
 CameraTrajectory.txt
 Thirdparty/DBoW2/build/

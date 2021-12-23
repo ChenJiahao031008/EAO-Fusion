@@ -22,6 +22,7 @@
 + 学习pangolin的二次曲面可视化，并为二次曲面增加立体边框和指向轴，更加美观
 + 分离RGBD和RGBD-IMU模块，在多个数据集下进行了测试
 + 增加平面约束，参考北航大佬的论文 [Object-oriented SLAM using Quadrics and Symmetry Properties for Indoor Environments]
++ 去除了立方体表示和直线特征
 
 **正在进行的修改：**
 

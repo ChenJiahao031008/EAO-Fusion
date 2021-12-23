@@ -35,7 +35,6 @@
 #include "KeyFrameDatabase.h"
 #include "ORBVocabulary.h"
 #include "Viewer.h"
-#include "ProbabilityMapping.h"
 
 // yolo online
 // #include "Semantic.h"
@@ -150,7 +149,6 @@ private:
 
     FrameDrawer* mpFrameDrawer;
     MapDrawer* mpMapDrawer;
-    ProbabilityMapping* mpSemiDenseMapping;
 
     // System threads: Local Mapping, Loop Closing, Viewer.
     // The Tracking thread "lives" in the main execution thread that creates the System object.

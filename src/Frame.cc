@@ -156,7 +156,6 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
              const cv::Mat &imDepth,
              const double &timeStamp,
              ORBextractor *extractor,
-             line_lbd_detect *line_lbd_ptr_frame, // line detect.
              ORBVocabulary *voc,
              cv::Mat &K,
              cv::Mat &distCoef,
@@ -167,7 +166,6 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     : mpORBvocabulary(voc),
       mpORBextractorLeft(extractor),
       mpORBextractorRight(static_cast<ORBextractor *>(NULL)),
-      mpline_lbd_ptr_frame(line_lbd_ptr_frame), // line detect.
       mTimeStamp(timeStamp),
       mColorImage(rawImage.clone()),   // color image.
       mQuadricImage(rawImage.clone()), // quadrics image.
@@ -191,6 +189,7 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
 
     // ORB extraction
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
     ExtractORB(0,imGray);
 
     N = mvKeys.size();
@@ -226,28 +225,22 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     mb = mbf/fx;
 
     AssignFeaturesToGrid();
+    std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+    double t12 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+    std::cout << "[COST TIME] Point Extraction Time is : " << t12 << std::endl;
 
-    // note: [EAO-SLAM] line detection.
-    mpline_lbd_ptr_frame->detect_raw_lines(rawImage, keylines_raw);
-    mpline_lbd_ptr_frame->filter_lines(keylines_raw, keylines_out);
-
-    keylines_to_mat(keylines_out, all_lines_mat, 1);
-
-    Eigen::MatrixXd all_lines_raw(all_lines_mat.rows, 4);
-    for (int rr = 0; rr < all_lines_mat.rows; rr++)
-        for (int cc = 0; cc < 4; cc++)
-            all_lines_raw(rr, cc) = all_lines_mat.at<float>(rr, cc);
-
-    // save to frame.
-    all_lines_eigen = all_lines_raw;
 
     // add plane --------------------------
     // 由于特征提取时间和面特征提取时间加在一起都没有目标检测时间耗时大，因此这里并没有采用并行处理的方法
-    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    std::chrono::steady_clock::time_point t5 = std::chrono::steady_clock::now();
     ComputePlanesFromOrganizedPointCloud(imDepth);
-    std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
-    double t12 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
-    // std::cout << "[COST TIME] Plane Extraction Time is : " << t12 << std::endl;
+    std::chrono::steady_clock::time_point t6 = std::chrono::steady_clock::now();
+    double t56 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t5).count();
+    std::cout << "[COST TIME] Plane Extraction Time is : " << t56 << std::endl;
+
+    double t16 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t1).count();
+    std::cout << "[COST TIME] Total Extraction Time is : " << t16 << std::endl;
+
     mnRealPlaneNum = mvPlanePoints.size();
     mnPlaneNum = mvPlanePoints.size();
     // std::cout << "[INFO] Plane Num is : " << mnPlaneNum << std::endl;
@@ -444,7 +437,6 @@ Frame::Frame(   const cv::Mat &rawImage,                // color image.
                 const cv::Mat &imGray,
                 const double &timeStamp,
                 ORBextractor* extractor,
-                line_lbd_detect* line_lbd_ptr_frame,    // line detect.
                 ORBVocabulary* voc,
                 cv::Mat &K,
                 cv::Mat &distCoef,
@@ -455,7 +447,6 @@ Frame::Frame(   const cv::Mat &rawImage,                // color image.
                             :   mpORBvocabulary(voc),
                                 mpORBextractorLeft(extractor),
                                 mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-                                mpline_lbd_ptr_frame(line_lbd_ptr_frame),   // line detect.
                                 mTimeStamp(timeStamp),
                                 mColorImage(rawImage.clone()),      // color image.
                                 mQuadricImage(rawImage.clone()),    // quadrics image.
@@ -517,19 +508,6 @@ Frame::Frame(   const cv::Mat &rawImage,                // color image.
 
     AssignFeaturesToGrid();
 
-    // note: [EAO-SLAM] line detection.
-    mpline_lbd_ptr_frame->detect_raw_lines(rawImage, keylines_raw);
-    mpline_lbd_ptr_frame->filter_lines(keylines_raw, keylines_out);
-
-    keylines_to_mat(keylines_out, all_lines_mat,1);
-
-	Eigen::MatrixXd all_lines_raw(all_lines_mat.rows,4);
-	for (int rr=0;rr<all_lines_mat.rows;rr++)
-		for (int cc=0;cc<4;cc++)
-		  	all_lines_raw(rr,cc) = all_lines_mat.at<float>(rr,cc);
-
-    // save to frame.
-    all_lines_eigen = all_lines_raw;
 
 }
 
