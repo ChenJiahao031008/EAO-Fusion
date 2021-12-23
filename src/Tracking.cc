@@ -428,7 +428,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
         if (currentObjs.size() == 0)
         {
-            std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
+            // std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
         // 耗时计算
         auto end = std::chrono::system_clock::now();
@@ -736,7 +736,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
 
         if (currentObjs.size() == 0)
         {
-            std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
+            // std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
         // 耗时计算
         // auto end = std::chrono::system_clock::now();
@@ -1107,6 +1107,25 @@ void Tracking::Track()
         // If tracking were good, check if we insert a keyframe
         if (bOK)
         {
+            // add plane -------------------
+            // Update Planes
+            std::cout << "[DEBUG] mnPlaneNum is " << mCurrentFrame.mnPlaneNum << std::endl;
+            for (int i = 0; i < mCurrentFrame.mnPlaneNum; ++i)
+            {
+                MapPlane *pMP = mCurrentFrame.mvpMapPlanes[i];
+                if (pMP && pMP->mbSeen)
+                {
+                    // 更新边界点
+                    // TODO: 为什么不更新新生成的平面？
+                    pMP->UpdateBoundary(mCurrentFrame, i);
+                }
+                else
+                {
+                    // mCurrentFrame.mbNewPlane = true;
+                }
+            }
+            // add plane end -----------------
+
             // Update motion model
             if (!mLastFrame.mTcw.empty())
             {
@@ -1198,10 +1217,11 @@ void Tracking::Track()
 void Tracking::StereoInitialization()
 {
 
-    if (mCurrentFrame.N > 400)
+    if (mCurrentFrame.N > 50)
     {
         // Set Frame pose to the origin
         mCurrentFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
+
         mInitialFrame = Frame(mCurrentFrame);
         mInitialFrame.SetPose(cv::Mat::eye(4, 4, CV_32F));
         mInitialSecendFrame = Frame(mCurrentFrame); // [EAO] the second frame when initialization.
@@ -1241,6 +1261,7 @@ void Tracking::StereoInitialization()
 
             }
         }
+
         // Update Connections
         // pKFini->UpdateConnections();
         // pKFcur->UpdateConnections();
@@ -1249,7 +1270,15 @@ void Tracking::StereoInitialization()
         pKFini->SetPose(pKFini->GetPose());
         pKFcur->SetPose(pKFcur->GetPose());
 
-
+        for (int i = 0; i < mCurrentFrame.mnPlaneNum; ++i)
+        {
+            // 平面的系数转到世界坐标系下是H^{-T}
+            // 虽然是p3D，但是好像是4维
+            cv::Mat p3D = mCurrentFrame.ComputePlaneWorldCoeff(i);
+            MapPlane *pNewMP = new MapPlane(p3D, pKFini, i, mpMap);
+            mpMap->AddMapPlane(pNewMP);
+            pKFini->AddMapPlane(pNewMP, i);
+        }
 
         {
             // NOTE [EAO] rotate the world coordinate to the initial frame (groundtruth provides the normal vector of the ground).
@@ -1556,11 +1585,15 @@ bool Tracking::TrackReferenceKeyFrame()
 
     int nmatches = matcher.SearchByBoW(mpReferenceKF, mCurrentFrame, vpMapPointMatches);
 
-    if (nmatches < 15)
+    if (nmatches < 10)
         return false;
 
     mCurrentFrame.mvpMapPoints = vpMapPointMatches;
     mCurrentFrame.SetPose(mLastFrame.mTcw);
+
+    // add plane
+    mpMap->AssociatePlanesByBoundary(mCurrentFrame);
+    // add plane end
 
     Optimizer::PoseOptimization(&mCurrentFrame);
 
@@ -1581,6 +1614,23 @@ bool Tracking::TrackReferenceKeyFrame()
                 nmatches--;
             }
             else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                nmatchesMap++;
+        }
+    }
+
+    // add plane
+    int nDisgardPlane = 0;
+    for (int i = 0; i < mCurrentFrame.mnPlaneNum; i++)
+    {
+        if (mCurrentFrame.mvpMapPlanes[i])
+        {
+            if (mCurrentFrame.mvpMapPlanes[i] != nullptr && mCurrentFrame.mvbPlaneOutlier[i])
+            {
+                mCurrentFrame.mvpMapPlanes[i] = static_cast<MapPlane *>(NULL);
+                nmatches--;
+                nDisgardPlane++;
+            }
+            else
                 nmatchesMap++;
         }
     }
@@ -2182,6 +2232,10 @@ bool Tracking::TrackWithMotionModel()
         }
     } // data association END ----------------------------------------------------------------
 
+    // add plane
+    mpMap->AssociatePlanesByBoundary(mCurrentFrame);
+    // add plane end
+
     // Optimize frame pose with all matches
     // 疑问：在哪里用的优化？
     Optimizer::PoseOptimization(&mCurrentFrame);
@@ -2207,11 +2261,26 @@ bool Tracking::TrackWithMotionModel()
         }
     }
 
-    if (mbOnlyTracking)
-    {
-        mbVO = nmatchesMap < 10;
-        return nmatches > 20;
+    // add plane
+    int nDisgardPlane = 0;
+    for (int i = 0; i < mCurrentFrame.mnPlaneNum; i++) {
+        if (mCurrentFrame.mvpMapPlanes[i]) {
+            if (mCurrentFrame.mvpMapPlanes[i]!= nullptr && mCurrentFrame.mvbPlaneOutlier[i]) {
+                mCurrentFrame.mvpMapPlanes[i] = static_cast<MapPlane *>(NULL);
+                nmatches--;
+                nDisgardPlane++;
+            } else
+                nmatchesMap++;
+        }
     }
+    // add plane end
+
+    // if (nDisgardPlane > 0)
+        if (mbOnlyTracking)
+        {
+            mbVO = nmatchesMap < 10;
+            return nmatches > 20;
+        }
 
     return nmatchesMap >= 10;
 }
@@ -2224,6 +2293,10 @@ bool Tracking::TrackLocalMap()
     UpdateLocalMap();
     // Step 2：筛选局部地图中新增的在视野范围内的地图点，投影到当前帧搜索匹配，得到更多的匹配关系
     SearchLocalPoints();
+
+    // add plane
+    mpMap->AssociatePlanesByBoundary(mCurrentFrame);
+    // add plane end
 
     // Optimize Pose
     Optimizer::PoseOptimization(&mCurrentFrame);
@@ -2250,12 +2323,29 @@ bool Tracking::TrackLocalMap()
         }
     }
 
+    // add plane
+    int nDisgardPlane = 0;
+    for (int i = 0; i < mCurrentFrame.mnPlaneNum; i++)
+    {
+        if (mCurrentFrame.mvpMapPlanes[i])
+        {
+            if (mCurrentFrame.mvpMapPlanes[i] != nullptr && mCurrentFrame.mvbPlaneOutlier[i])
+            {
+                mCurrentFrame.mvpMapPlanes[i] = static_cast<MapPlane *>(NULL);
+                nDisgardPlane++;
+            }
+            else
+                mnMatchesInliers++;
+        }
+    }
+    // add plane end
+
     // Decide if the tracking was succesful
     // More restrictive if there was a relocalization recently
     if (mCurrentFrame.mnId < mnLastRelocFrameId + mMaxFrames && mnMatchesInliers < 50)
         return false;
 
-    if (mnMatchesInliers < 30)
+    if (mnMatchesInliers < 10)
         return false;
     else
         return true;
@@ -2379,8 +2469,33 @@ int Tracking::NeedNewKeyFrame()
                 return 0;
         }
     }
+
+    // add plane
+    if (mCurrentFrame.mbNewPlane)
+    {
+        // If the mapping accepts keyframes, insert keyframe.
+        // Otherwise send a signal to interrupt BA
+        if (bLocalMappingIdle)
+        {
+            return 1;
+        }
+        else
+        {
+            mpLocalMapper->InterruptBA();
+            if (mSensor != System::MONOCULAR)
+            {
+                if (mpLocalMapper->KeyframesInQueue() < 3)
+                    return 1;
+                else
+                    return 0;
+            }
+            else
+                return 0;
+        }
+    }
+
     // note [EAO] create new keyframe by object.
-    else if (c1d)
+    if (c1d)
     {
         if (bLocalMappingIdle)
         {
@@ -2400,8 +2515,9 @@ int Tracking::NeedNewKeyFrame()
                 return 0;
         }
     }
-    else
-        return 0;
+
+
+    return 0;
 }
 
 void Tracking::CreateNewKeyFrame(bool CreateByObjs)
@@ -2424,6 +2540,38 @@ void Tracking::CreateNewKeyFrame(bool CreateByObjs)
     if (mSensor != System::MONOCULAR)
     {
         mCurrentFrame.UpdatePoseMatrices();
+
+        if (!CreateByObjs){
+            // add plane
+            mpMap->AssociatePlanesByBoundary(mCurrentFrame);
+
+            for (int i = 0; i < mCurrentFrame.mnPlaneNum; ++i)
+            {
+                // TODO: 增加观测计数是为了什么？
+                if (mCurrentFrame.mvpMapPlanes[i])
+                {
+                    mCurrentFrame.mvpMapPlanes[i]->AddObservation(pKF, i);
+                    if (!mCurrentFrame.mvpMapPlanes[i]->mbSeen)
+                    {
+                        mCurrentFrame.mvpMapPlanes[i]->mbSeen = true;
+                        // 只有在关键帧中才更新平面系数
+                        mpMap->AddMapPlane(mCurrentFrame.mvpMapPlanes[i]);
+                    }
+                    continue;
+                }
+
+                if (mCurrentFrame.mvbPlaneOutlier[i])
+                    continue;
+
+                // 为地图增加新的平面
+                cv::Mat p3D = mCurrentFrame.ComputePlaneWorldCoeff(i);
+                MapPlane *pNewMP = new MapPlane(p3D, pKF, i, mpMap);
+                mpMap->AddMapPlane(pNewMP);
+                pKF->AddMapPlane(pNewMP, i);
+
+            }
+        }
+        // add plane end
 
         // We sort points by the measured depth by the stereo/RGBD sensor.
         // We create all those MapPoints whose depth < mThDepth.

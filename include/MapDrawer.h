@@ -1,3 +1,11 @@
+/*
+ * @Author: Chen Jiahao
+ * @Date: 2021-10-29 10:08:18
+ * @LastEditors: Chen Jiahao
+ * @LastEditTime: 2021-12-22 15:59:45
+ * @Description: file content
+ * @FilePath: /catkin_ws/src/EAO-SLAM/include/MapDrawer.h
+ */
 /**
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
@@ -49,6 +57,12 @@ public:
     void SetCurrentCameraPose(const cv::Mat &Tcw);
     void SetReferenceKeyFrame(KeyFrame *pKF);
     void GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M);
+
+    // add plane
+    typedef pcl::PointXYZRGB PointT;
+    typedef pcl::PointCloud<PointT> PointCloud;
+    void DrawMapPlanes();
+    void DrawMapPlanesOld();
 
 private:
     float mKeyFrameSize;

@@ -21,16 +21,19 @@
 + 语义标签可视化，并在pangolin上显示语义标签（很遗憾不能修改字体大小，不知为何会报错）
 + 学习pangolin的二次曲面可视化，并为二次曲面增加立体边框和指向轴，更加美观
 + 分离RGBD和RGBD-IMU模块，在多个数据集下进行了测试
++ 增加平面约束，参考北航大佬的论文 [Object-oriented SLAM using Quadrics and Symmetry Properties for Indoor Environments]
 
 **正在进行的修改：**
 
 + 作者部分代码和论文对不上，正在修复
-+ 增加平面约束，参考北航大佬的论文 [Object-oriented SLAM using Quadrics and Symmetry Properties for Indoor Environments]
++ 作者对二次曲面的处理是灾难性的，需要重写
 
 **未完成部分：**
 
 + 可以微调下YOLOX模块，使其对室内环境更加友好
 + 在RGBD下尝试单帧初始化
++ 平面约束和物体进行融合
++ 物体参与优化
 + 试图融合层次化物体建模
 + ~~加入多传感器融合过程，主要以IMU为主，看情况是否加入编码器~~
 

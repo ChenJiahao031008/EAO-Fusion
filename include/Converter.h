@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-10-29 10:08:18
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-10-29 10:34:01
+ * @LastEditTime: 2021-12-21 11:51:48
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/include/Converter.h
  */
@@ -30,6 +30,8 @@
 #include<Eigen/Dense>
 #include "types/types_six_dof_expmap.h"
 #include "types/types_seven_dof_expmap.h"
+// add plane
+#include "Plane3D.h"
 
 namespace ORB_SLAM2
 {
@@ -65,6 +67,10 @@ public:
     static float bboxOverlapratio(const cv::Rect& rect1, const cv::Rect& rect2);
     static float bboxOverlapratioFormer(const cv::Rect& rect1, const cv::Rect& rect2);
     static float bboxOverlapratioLatter(const cv::Rect& rect1, const cv::Rect& rect2);
+
+    // add plane
+    static g2o::Plane3D toPlane3D(const cv::Mat &coe);
+    static cv::Mat toCvMat(const g2o::Plane3D &plane);
 };
 
 }// namespace ORB_SLAM

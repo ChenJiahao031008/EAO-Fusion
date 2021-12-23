@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-10-29 10:08:18
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-10-29 10:35:12
+ * @LastEditTime: 2021-12-21 11:46:15
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/include/Optimizer.h
  */
@@ -47,11 +47,11 @@ class Optimizer
 {
 public:
     // void static ComputeObjsLine(Frame *pFrame);
-    void static BundleAdjustment(const std::vector<KeyFrame*> &vpKF, const std::vector<MapPoint*> &vpMP,
-                                 int nIterations = 5, bool *pbStopFlag=NULL, const unsigned long nLoopKF=0,
-                                 const bool bRobust = true);
+    void static BundleAdjustment(const std::vector<KeyFrame *> &vpKF, const std::vector<MapPoint *> &vpMP, const std::vector<MapPlane *> &vpMPl, int nIterations = 5, bool *pbStopFlag = NULL, const unsigned long nLoopKF = 0, const bool bRobust = true);
+
     void static GlobalBundleAdjustemnt(Map* pMap, int nIterations=5, bool *pbStopFlag=NULL,
                                        const unsigned long nLoopKF=0, const bool bRobust = true);
+
     void static LocalBundleAdjustment(KeyFrame* pKF, bool *pbStopFlag, Map *pMap);
     int static PoseOptimization(Frame* pFrame);
 

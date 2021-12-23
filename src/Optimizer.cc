@@ -31,7 +31,9 @@
 #include<Eigen/StdVector>
 
 #include "Converter.h"
-
+#include "g2oAddition/Plane3D.h"
+#include "g2oAddition/EdgePlane.h"
+#include "g2oAddition/VertexPlane.h"
 #include<mutex>
 
 #include<math.h>
@@ -44,14 +46,19 @@ namespace ORB_SLAM2
 
 void Optimizer::GlobalBundleAdjustemnt(Map* pMap, int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
 {
-    vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
-    vector<MapPoint*> vpMP = pMap->GetAllMapPoints();
-    BundleAdjustment(vpKFs,vpMP,nIterations,pbStopFlag, nLoopKF, bRobust);
+    vector<KeyFrame *> vpKFs = pMap->GetAllKeyFrames();
+    vector<MapPoint *> vpMP = pMap->GetAllMapPoints();
+    vector<MapPlane *> vpMPl = pMap->GetAllMapPlanes();
+    BundleAdjustment(vpKFs, vpMP, vpMPl, nIterations, pbStopFlag, nLoopKF, bRobust);
 }
 
-
-void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<MapPoint *> &vpMP,
-                                 int nIterations, bool* pbStopFlag, const unsigned long nLoopKF, const bool bRobust)
+void Optimizer::BundleAdjustment(
+    const vector<KeyFrame *> &vpKFs,
+    const vector<MapPoint *> &vpMP,
+    const std::vector<MapPlane *> &vpMPl,
+    int nIterations, bool *pbStopFlag,
+    const unsigned long nLoopKF,
+    const bool bRobust)
 {
     vector<bool> vbNotIncludedMP;
     vbNotIncludedMP.resize(vpMP.size());
@@ -70,6 +77,8 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         optimizer.setForceStopFlag(pbStopFlag);
 
     long unsigned int maxKFid = 0;
+    long unsigned int maxMPid = 0;
+    long unsigned int maxMPlid = 0;
 
     // Set KeyFrame vertices
     for(size_t i=0; i<vpKFs.size(); i++)
@@ -101,8 +110,10 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         vPoint->setId(id);
         vPoint->setMarginalized(true);
         optimizer.addVertex(vPoint);
+        if (id > maxMPid)
+            maxMPid = id;
 
-       const map<KeyFrame*,size_t> observations = pMP->GetObservations();
+        const map<KeyFrame *, size_t> observations = pMP->GetObservations();
 
         int nEdges = 0;
         //SET EDGES
@@ -187,68 +198,139 @@ void Optimizer::BundleAdjustment(const vector<KeyFrame *> &vpKFs, const vector<M
         }
     }
 
-    // Optimize!
-    optimizer.initializeOptimization();
-    optimizer.optimize(nIterations);
+    // add plane
+    // TODO: 修改参数读取方式
+    double angleInfo = 3282.8 / (1.0 * 1.0);
+    double disInfo = 100.0 * 100.0;
+    double planeChi = 300;
+    double VPplaneChi = 300;
+    const float deltaPlane = sqrt(planeChi);
+    const float VPdeltaPlane = sqrt(VPplaneChi);
 
-    // Recover optimized data
-
-    //Keyframes
-    for(size_t i=0; i<vpKFs.size(); i++)
+    //Set MapPlane vertices
+    for (size_t i = 0; i < vpMPl.size(); i++)
     {
-        KeyFrame* pKF = vpKFs[i];
-        if(pKF->isBad())
+        MapPlane *pMP = vpMPl[i];
+        if (pMP->isBad())
             continue;
-        g2o::VertexSE3Expmap* vSE3 = static_cast<g2o::VertexSE3Expmap*>(optimizer.vertex(pKF->mnId));
-        g2o::SE3Quat SE3quat = vSE3->estimate();
-        if(nLoopKF==0)
+        g2o::VertexPlane *vPlane = new g2o::VertexPlane();
+        vPlane->setEstimate(Converter::toPlane3D(pMP->GetWorldPos()));
+        int id = pMP->mnId + maxMPid + 1;
+        vPlane->setId(id);
+        vPlane->setMarginalized(true);
+        optimizer.addVertex(vPlane);
+        if (id > maxMPlid)
+            maxMPlid = id;
+
+        //SET EDGES
+        const map<KeyFrame *, int> observations = pMP->GetObservations();
+        for (map<KeyFrame *, int>::const_iterator mit = observations.begin(), mend = observations.end();
+             mit != mend; mit++)
         {
-            pKF->SetPose(Converter::toCvMat(SE3quat));
-        }
-        else
-        {
-            pKF->mTcwGBA.create(4,4,CV_32F);
-            Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
-            pKF->mnBAGlobalForKF = nLoopKF;
+            KeyFrame *pKFi = mit->first;
+            if (!pKFi->isBad())
+            {
+                g2o::EdgePlane *e = new g2o::EdgePlane();
+                if (optimizer.vertex(id) == NULL || optimizer.vertex(pKFi->mnId) == NULL)
+                    continue;
+                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pKFi->mnId)));
+                e->setMeasurement(Converter::toPlane3D(pKFi->mvPlaneCoefficients[mit->second]));
+                Eigen::Matrix3d Info;
+                Info << angleInfo, 0, 0,
+                    0, angleInfo, 0,
+                    0, 0, disInfo;
+                e->setInformation(Info);
+                g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+                e->setRobustKernel(rk);
+                rk->setDelta(deltaPlane);
+                optimizer.addEdge(e);
+            }
         }
     }
 
-    //Points
-    for(size_t i=0; i<vpMP.size(); i++)
-    {
-        if(vbNotIncludedMP[i])
-            continue;
+        // Optimize!
+        optimizer.initializeOptimization();
+        optimizer.optimize(nIterations);
 
-        MapPoint* pMP = vpMP[i];
+        // Recover optimized data
 
-        if(pMP->isBad())
-            continue;
-        g2o::VertexSBAPointXYZ* vPoint = static_cast<g2o::VertexSBAPointXYZ*>(optimizer.vertex(pMP->mnId+maxKFid+1));
-
-        if(nLoopKF==0)
+        //Keyframes
+        for (size_t i = 0; i < vpKFs.size(); i++)
         {
-            pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
-            pMP->UpdateNormalAndDepth();
+            KeyFrame *pKF = vpKFs[i];
+            if (pKF->isBad())
+                continue;
+            g2o::VertexSE3Expmap *vSE3 = static_cast<g2o::VertexSE3Expmap *>(optimizer.vertex(pKF->mnId));
+            g2o::SE3Quat SE3quat = vSE3->estimate();
+            if (nLoopKF == 0)
+            {
+                pKF->SetPose(Converter::toCvMat(SE3quat));
+            }
+            else
+            {
+                pKF->mTcwGBA.create(4, 4, CV_32F);
+                Converter::toCvMat(SE3quat).copyTo(pKF->mTcwGBA);
+                pKF->mnBAGlobalForKF = nLoopKF;
+            }
         }
-        else
-        {
-            pMP->mPosGBA.create(3,1,CV_32F);
-            Converter::toCvMat(vPoint->estimate()).copyTo(pMP->mPosGBA);
-            pMP->mnBAGlobalForKF = nLoopKF;
-        }
-    }
 
+        //Points
+        for (size_t i = 0; i < vpMP.size(); i++)
+        {
+            if (vbNotIncludedMP[i])
+                continue;
+
+            MapPoint *pMP = vpMP[i];
+
+            if (pMP->isBad())
+                continue;
+            g2o::VertexSBAPointXYZ *vPoint = static_cast<g2o::VertexSBAPointXYZ *>(optimizer.vertex(pMP->mnId + maxKFid + 1));
+
+            if (nLoopKF == 0)
+            {
+                pMP->SetWorldPos(Converter::toCvMat(vPoint->estimate()));
+                pMP->UpdateNormalAndDepth();
+            }
+            else
+            {
+                pMP->mPosGBA.create(3, 1, CV_32F);
+                Converter::toCvMat(vPoint->estimate()).copyTo(pMP->mPosGBA);
+                pMP->mnBAGlobalForKF = nLoopKF;
+            }
+        }
+
+        //Planes
+        for (size_t i = 0; i < vpMPl.size(); i++)
+        {
+            MapPlane *pMP = vpMPl[i];
+
+            if (pMP->isBad())
+                continue;
+            g2o::VertexPlane *vPlane = static_cast<g2o::VertexPlane *>(optimizer.vertex(pMP->mnId + maxMPid + 1));
+
+            if (nLoopKF == 0)
+            {
+                pMP->SetWorldPos(Converter::toCvMat(vPlane->estimate()));
+            }
+            else
+            {
+                pMP->mPosGBA.create(4, 1, CV_32F);
+                Converter::toCvMat(vPlane->estimate()).copyTo(pMP->mPosGBA);
+                pMP->mnBAGlobalForKF = nLoopKF;
+            }
+        }
 }
 
 int Optimizer::PoseOptimization(Frame *pFrame)
 {
+    // std::cout << "[DEBUG] pose optimization start! " << std::endl;
     // ComputeObjsLine(pFrame);     // [EAO-SLAM]
 
     g2o::SparseOptimizer optimizer;
     g2o::BlockSolver_6_3::LinearSolverType * linearSolver;
 
     linearSolver = new g2o::LinearSolverDense<g2o::BlockSolver_6_3::PoseMatrixType>();
-
     g2o::BlockSolver_6_3 * solver_ptr = new g2o::BlockSolver_6_3(linearSolver);
 
     g2o::OptimizationAlgorithmLevenberg* solver = new g2o::OptimizationAlgorithmLevenberg(solver_ptr);
@@ -282,7 +364,8 @@ int Optimizer::PoseOptimization(Frame *pFrame)
 
     {
     unique_lock<mutex> lock(MapPoint::mGlobalMutex);
-
+    int BANum = 0;
+    double BAEror = 0, BAMax = 0;
     for(int i=0; i<N; i++)
     {
         MapPoint* pMP = pFrame->mvpMapPoints[i];
@@ -370,80 +453,212 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     if(nInitialCorrespondences<3)
         return 0;
 
+    //Set Plane vertices
+    const int M = pFrame->mnPlaneNum;
+    vector<g2o::EdgePlane *> vpEdgesPlane;
+    vector<size_t> vnIndexEdgePlane;
+    vpEdgesPlane.reserve(M);
+    vnIndexEdgePlane.reserve(M);
+
+    std::set<int> vnVertexId;
+    double angleInfo = 3282.8 / (1.0 * 1.0);
+    double disInfo = 100.0 * 100.0;
+    double planeChi = 300;
+    double VPplaneChi = 300;
+    const float deltaPlane = sqrt(planeChi);
+    const float VPdeltaPlane = sqrt(VPplaneChi);
+
+    {
+        unique_lock<mutex> lock(MapPlane::mGlobalMutex);
+        int PNum = 0;
+        double PEror = 0, PMax = 0;
+        unsigned long maxPlaneid = 0;
+        for (int i = 0; i < M; ++i)
+        {
+            // 取出当前帧能够观测到的平面地图实例
+            MapPlane *pMP = pFrame->mvpMapPlanes[i];
+            if (pMP)
+            {
+                // cout << "add plane vertex: " << pMP->mnId;
+                pFrame->mvbPlaneOutlier[i] = false;
+                // count()返回集合中某个值元素的个数，==0：表示这是第一次检测到
+                // mnId为全局id号
+                if (vnVertexId.count(pMP->mnId) == 0)
+                {
+                    g2o::VertexPlane *vP = new g2o::VertexPlane();
+                    // 设置顶点为g2o::plane形式，输入为当前帧的平面
+                    vP->setEstimate(Converter::toPlane3D(pMP->GetWorldPos()));
+                    int id = pMP->mnId + 1; // 由于第0个是位姿，所以要加1
+                    if (id > maxPlaneid)
+                        maxPlaneid = id; // 记录最大的id供后面使用
+                    vP->setId(id);
+                    vP->setFixed(true); // 不优化平面，平面固定不动只提供约束
+                    optimizer.addVertex(vP);
+                    vnVertexId.insert(pMP->mnId);
+                }
+                nInitialCorrespondences++;
+                // 初始化边，该边的基类是二元边，因此连接两个顶点：位姿和当前的平面
+                g2o::EdgePlane *e = new g2o::EdgePlane();
+                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(0)));
+                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pMP->mnId + 1)));
+                // 把边的观测投影到世界坐标系下作为观测（与地图实例相减）
+                e->setMeasurement(Converter::toPlane3D(pFrame->mvPlaneCoefficients[i]));
+                Eigen::Matrix3d Info;
+                // 信息矩阵中有三维，前两维度表示角度权重，最后一维表示距离权重
+                if (pMP->mbSeen)
+                {
+                    Info << angleInfo, 0, 0,
+                        0, angleInfo, 0,
+                        0, 0, disInfo;
+                }
+                else
+                {
+                    Info << 2 * angleInfo, 0, 0,
+                        0, 2 * angleInfo, 0,
+                        0, 0, 2 * disInfo;
+                }
+
+                e->setInformation(Info);
+
+                g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+                e->setRobustKernel(rk);
+                rk->setDelta(deltaPlane);
+                // 加入平面约束的边
+                optimizer.addEdge(e);
+
+                vpEdgesPlane.push_back(e);
+                vnIndexEdgePlane.push_back(i);
+            }
+        }
+        // cout << " Plane: " << PEror/PNum << " ";//" Max: " << PMax << " ";
+
+    }
+
     // We perform 4 optimizations, after each optimization we classify observation as inlier/outlier
     // At the next optimization, outliers are not included, but at the end they can be classified as inliers again.
     const float chi2Mono[4]={5.991,5.991,5.991,5.991};
     const float chi2Stereo[4]={7.815,7.815,7.815, 7.815};
     const int its[4]={10,10,10,10};
 
-    int nBad=0;
-    for(size_t it=0; it<4; it++)
+    int nBad = 0;
+    for (size_t it = 0; it < 4; it++)
     {
-
         vSE3->setEstimate(Converter::toSE3Quat(pFrame->mTcw));
+        // 其实就是初始化优化器,这里的参数0就算是不填写,默认也是0,也就是只对level为0的边进行优化
         optimizer.initializeOptimization(0);
+        // 开始优化
         optimizer.optimize(its[it]);
 
-        nBad=0;
-        for(size_t i=0, iend=vpEdgesMono.size(); i<iend; i++)
+        nBad = 0;
+        // 优化结束,开始遍历参与优化的每一条误差边(单目)
+        for (size_t i = 0, iend = vpEdgesMono.size(); i < iend; i++)
         {
-            g2o::EdgeSE3ProjectXYZOnlyPose* e = vpEdgesMono[i];
+            g2o::EdgeSE3ProjectXYZOnlyPose *e = vpEdgesMono[i];
 
             const size_t idx = vnIndexEdgeMono[i];
 
-            if(pFrame->mvbOutlier[idx])
+            // 如果这条误差边是来自于outlier
+            // 由于每次优化后是对所有的观测进行outlier和inlier判别，
+            // 因此之前被判别为outlier有可能变成inlier，需要额外的处理
+            if (pFrame->mvbOutlier[idx])
             {
                 e->computeError();
             }
 
+            // 就是error*\Omega*error,表征了这个点的误差大小(考虑置信度以后)
             const float chi2 = e->chi2();
 
-            if(chi2>chi2Mono[it])
+            if (chi2 > chi2Mono[it])
             {
-                pFrame->mvbOutlier[idx]=true;
+                pFrame->mvbOutlier[idx] = true;
+                // 设置为outlier , level 1 对应为外点,上面的过程中我们设置其为不优化
                 e->setLevel(1);
                 nBad++;
             }
             else
             {
-                pFrame->mvbOutlier[idx]=false;
+                // 设置为inlier, level 0 对应为内点,上面的过程中我们就是要优化这些关系
+                pFrame->mvbOutlier[idx] = false;
                 e->setLevel(0);
             }
-
-            if(it==2)
-                e->setRobustKernel(0);
+            // 除了前两次优化需要RobustKernel以外, 其余的优化都不需要
+            // 因为重投影的误差已经有明显的下降了 if (it == 2)
+            e->setRobustKernel(0);
         }
+        // cout << "after BA optimation : ";
+        int BAN = 0;
+        double BAE = 0, BAMax = 0;
 
-        for(size_t i=0, iend=vpEdgesStereo.size(); i<iend; i++)
+        // 双目和RGBD
+        for (size_t i = 0, iend = vpEdgesStereo.size(); i < iend; i++)
         {
-            g2o::EdgeStereoSE3ProjectXYZOnlyPose* e = vpEdgesStereo[i];
+            g2o::EdgeStereoSE3ProjectXYZOnlyPose *e = vpEdgesStereo[i];
 
             const size_t idx = vnIndexEdgeStereo[i];
 
-            if(pFrame->mvbOutlier[idx])
+            if (pFrame->mvbOutlier[idx])
             {
                 e->computeError();
             }
 
             const float chi2 = e->chi2();
-
-            if(chi2>chi2Stereo[it])
+            BAN++;
+            BAE += chi2;
+            BAMax = BAMax > chi2 ? BAMax : chi2;
+            if (chi2 > chi2Stereo[it])
             {
-                pFrame->mvbOutlier[idx]=true;
+                pFrame->mvbOutlier[idx] = true;
                 e->setLevel(1);
                 nBad++;
             }
             else
             {
                 e->setLevel(0);
-                pFrame->mvbOutlier[idx]=false;
+                pFrame->mvbOutlier[idx] = false;
             }
 
-            if(it==2)
+            if (it == 2)
+                e->setRobustKernel(0);
+        }
+        // cout << " BA: " << BAE/BAN << "  " ;//" Max: " << BAMax << "  ";
+
+        // 平面部分
+        int PN = 0;
+        double PE = 0, PMax = 0;
+        for (size_t i = 0, iend = vpEdgesPlane.size(); i < iend; i++)
+        {
+            g2o::EdgePlane *e = vpEdgesPlane[i];
+
+            const size_t idx = vnIndexEdgePlane[i];
+
+            if (pFrame->mvbPlaneOutlier[idx])
+            {
+                e->computeError();
+            }
+
+            const float chi2 = e->chi2();
+            PN++;
+            PE += chi2;
+            PMax = PMax > chi2 ? PMax : chi2;
+
+            if (chi2 > planeChi)
+            {
+                pFrame->mvbPlaneOutlier[idx] = true;
+                e->setLevel(1);
+                nBad++;
+            }
+            else
+            {
+                e->setLevel(0);
+                pFrame->mvbPlaneOutlier[idx] = false;
+            }
+
+            if (it == 2)
                 e->setRobustKernel(0);
         }
 
-        if(optimizer.edges().size()<10)
+
+        if (optimizer.edges().size() < 10)
             break;
     }
 
@@ -452,6 +667,7 @@ int Optimizer::PoseOptimization(Frame *pFrame)
     g2o::SE3Quat SE3quat_recov = vSE3_recov->estimate();
     cv::Mat pose = Converter::toCvMat(SE3quat_recov);
     pFrame->SetPose(pose);
+    // std::cout << "[DEBUG] pose optimization finished! " << std::endl;
 
     return nInitialCorrespondences-nBad;
 }
@@ -475,6 +691,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
 
     // Local MapPoints seen in Local KeyFrames
     list<MapPoint*> lLocalMapPoints;
+    list<MapPlane *> lLocalMapPlanes;
     for(list<KeyFrame*>::iterator lit=lLocalKeyFrames.begin() , lend=lLocalKeyFrames.end(); lit!=lend; lit++)
     {
         vector<MapPoint*> vpMPs = (*lit)->GetMapPointMatches();
@@ -489,6 +706,16 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
                         pMP->mnBALocalForKF=pKF->mnId;
                     }
         }
+#ifdef USE_LOCAL_PLANE
+        for (int i = 0; i < (*lit)->mnPlaneNum; ++i) {
+            MapPlane* pMP = (*lit)->mvpMapPlanes[i];
+            if(pMP)
+                if(pMP->mnBALocalForKF!=pKF->mnId){
+                    lLocalMapPlanes.push_back(pMP);
+                    pMP->mnBALocalForKF = pKF->mnId;
+                }
+        }
+#endif
     }
 
     // Fixed Keyframes. Keyframes that see Local MapPoints but that are not Local Keyframes
@@ -508,6 +735,24 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
             }
         }
     }
+
+#ifdef USE_LOCAL_PLANE
+    // Fixed Keyframes. Keyframes that see Local MapPlanes but that are not Local Keyframes
+    for(list<MapPlane*>::iterator lit=lLocalMapPlanes.begin(), lend=lLocalMapPlanes.end(); lit!=lend; lit++){
+        map<KeyFrame*,int> observations = (*lit)->GetObservations();
+        for(map<KeyFrame*,int>::iterator mit=observations.begin(), mend=observations.end(); mit!=mend; mit++)
+        {
+            KeyFrame* pKFi = mit->first;
+
+            if(pKFi->mnBALocalForKF!=pKF->mnId && pKFi->mnBAFixedForKF!=pKF->mnId)
+            {
+                pKFi->mnBAFixedForKF=pKF->mnId;
+                if(!pKFi->isBad())
+                    lFixedCameras.push_back(pKFi);
+            }
+        }
+    }
+#endif
 
     // Setup optimizer
     g2o::SparseOptimizer optimizer;
@@ -574,6 +819,7 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
 
     const float thHuberMono = sqrt(5.991);
     const float thHuberStereo = sqrt(7.815);
+    unsigned long maxPointid = 0;
 
     for(list<MapPoint*>::iterator lit=lLocalMapPoints.begin(), lend=lLocalMapPoints.end(); lit!=lend; lit++)
     {
@@ -581,6 +827,8 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
         g2o::VertexSBAPointXYZ* vPoint = new g2o::VertexSBAPointXYZ();
         vPoint->setEstimate(Converter::toVector3d(pMP->GetWorldPos()));
         int id = pMP->mnId+maxKFid+1;
+        if (id > maxPointid)
+            maxPointid = id;
         vPoint->setId(id);
         vPoint->setMarginalized(true);
         optimizer.addVertex(vPoint);
@@ -658,6 +906,58 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
         }
     }
 
+#ifdef USE_LOCAL_PLANE
+    vector<g2o::EdgePlane *> vpEdgesPlane;
+    double angleInfo = 3282.8 / (1.0 * 1.0);
+    double disInfo = 100.0 * 100.0;
+    double planeChi = 300;
+    double VPplaneChi = 300;
+    const float deltaPlane = sqrt(planeChi);
+    const float VPdeltaPlane = sqrt(VPplaneChi);
+
+    for (list<MapPlane *>::iterator lit = lLocalMapPlanes.begin(), lend = lLocalMapPlanes.end();
+         lit != lend; lit++)
+    {
+
+        MapPlane *pMP = *lit;
+        g2o::VertexPlane *vPlane = new g2o::VertexPlane();
+        vPlane->setEstimate(Converter::toPlane3D(pMP->GetWorldPos()));
+        int id = pMP->mnId + maxPointid + 1;
+        vPlane->setId(id);
+        vPlane->setMarginalized(true);
+        optimizer.addVertex(vPlane);
+
+        const map<KeyFrame *, int> observations = pMP->GetObservations();
+        for (map<KeyFrame *, int>::const_iterator mit = observations.begin(), mend = observations.end();
+             mit != mend; mit++)
+        {
+            KeyFrame *pKFi = mit->first;
+            if (!pKFi->isBad())
+            {
+                g2o::EdgePlane *e = new g2o::EdgePlane();
+                if (optimizer.vertex(id) == NULL || optimizer.vertex(pKFi->mnId) == NULL)
+                    continue;
+                e->setVertex(0, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(id)));
+                e->setVertex(1, dynamic_cast<g2o::OptimizableGraph::Vertex *>(optimizer.vertex(pKFi->mnId)));
+                e->setMeasurement(Converter::toPlane3D(pKFi->mvPlaneCoefficients[mit->second]));
+                Eigen::Matrix3d Info;
+                Info << angleInfo, 0, 0,
+                    0, angleInfo, 0,
+                    0, 0, disInfo;
+                e->setInformation(Info);
+                g2o::RobustKernelHuber *rk = new g2o::RobustKernelHuber;
+                e->setRobustKernel(rk);
+                rk->setDelta(deltaPlane);
+                optimizer.addEdge(e);
+
+                vpEdgesPlane.push_back(e);
+                vpEdgeKFPlane.push_back(pKFi);
+                vpMapPlane.push_back(pMP);
+            }
+        }
+    }
+#endif
+
     if(pbStopFlag)
         if(*pbStopFlag)
             return;
@@ -707,6 +1007,20 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
         e->setRobustKernel(0);
     }
 
+#ifdef USE_LOCAL_PLANE
+    for (size_t i = 0, iend = vpEdgesPlane.size(); i < iend; i++)
+    {
+        g2o::EdgePlane *e = vpEdgesPlane[i];
+
+        if (e->chi2() > planeChi)
+        {
+            e->setLevel(1);
+        }
+
+        e->setRobustKernel(0);
+    }
+#endif
+
     // Optimize again without the outliers
 
     optimizer.initializeOptimization(0);
@@ -716,6 +1030,11 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
 
     vector<pair<KeyFrame*,MapPoint*> > vToErase;
     vToErase.reserve(vpEdgesMono.size()+vpEdgesStereo.size());
+
+#ifdef USE_LOCAL_PLANE
+    vector<pair<KeyFrame *, MapPlane *>> vToErasePlane;
+    vToErasePlane.reserve(vpEdgesPlane.size());
+#endif
 
     // Check inlier observations
     for(size_t i=0, iend=vpEdgesMono.size(); i<iend;i++)
@@ -747,6 +1066,20 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
             vToErase.push_back(make_pair(pKFi,pMP));
         }
     }
+
+#ifdef USE_LOCAL_PLANE
+    for (size_t i = 0, iend = vpEdgesPlane.size(); i < iend; i++)
+    {
+        g2o::EdgePlane *e = vpEdgesPlane[i];
+
+        if (e->chi2() > planeChi)
+        {
+            MapPlane *pMP = vpMapPlane[i];
+            KeyFrame *pKFi = vpEdgeKFPlane[i];
+            vToErasePlane.push_back(make_pair(pKFi, pMP));
+        }
+    }
+#endif
 
     // Get Map Mutex
     unique_lock<mutex> lock(pMap->mMutexMapUpdate);
@@ -792,6 +1125,16 @@ void Optimizer::LocalBundleAdjustment(KeyFrame *pKF, bool* pbStopFlag, Map* pMap
         sBAMP.insert(pMP);
     }
 
+    //Planes
+#ifdef USE_LOCAL_PLANE
+    for(list<MapPlane*>::iterator lit=lLocalMapPlanes.begin(), lend=lLocalMapPlanes.end(); lit!=lend; lit++)
+    {
+        MapPlane* pMP = *lit;
+        g2o::VertexPlane* vPlane = static_cast<g2o::VertexPlane*>(optimizer.vertex(pMP->mnId+maxPointid+1));
+        pMP->SetWorldPos(Converter::toCvMat(vPlane->estimate()));
+    }
+#endif
+
 }
 
 
@@ -813,6 +1156,7 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
 
     const vector<KeyFrame*> vpKFs = pMap->GetAllKeyFrames();
     const vector<MapPoint*> vpMPs = pMap->GetAllMapPoints();
+    const vector<MapPlane *> vpMPlanes = pMap->GetAllMapPlanes();
 
     const unsigned int nMaxKFid = pMap->GetMaxKFid();
 
@@ -1057,6 +1401,36 @@ void Optimizer::OptimizeEssentialGraph(Map* pMap, KeyFrame* pLoopKF, KeyFrame* p
         pMP->SetWorldPos(cvCorrectedP3Dw);
 
         pMP->UpdateNormalAndDepth();
+    }
+
+    // Correct planes. Transform to "non-optimized" reference keyframe pose and transform back with optimized pose
+    for (size_t i = 0, iend=vpMPlanes.size(); i < iend; i++)
+    {
+        MapPlane *pMP = vpMPlanes[i];
+
+        if (pMP->isBad())
+            continue;
+
+        int nIDr;
+        if (pMP->mnCorrectedByKF == pCurKF->mnId)
+        {
+            nIDr = pMP->mnCorrectedReference;
+        }
+        else
+        {
+            KeyFrame *pRefKF = pMP->GetReferenceKeyFrame();
+            nIDr = pRefKF->mnId;
+        }
+
+        g2o::Sim3 Srw = vScw[nIDr];
+        g2o::Sim3 correctedSwr = vCorrectedSwc[nIDr];
+
+        cv::Mat P3Dw = pMP->GetWorldPos();
+        Eigen::Matrix<double, 3, 1> eigP3Dw = Converter::toVector3d(P3Dw);
+        Eigen::Matrix<double, 3, 1> eigCorrectedP3Dw = correctedSwr.map(Srw.map(eigP3Dw));
+
+        cv::Mat cvCorrectedP3Dw = Converter::toCvMat(eigCorrectedP3Dw);
+        pMP->SetWorldPos(cvCorrectedP3Dw);
     }
 }
 

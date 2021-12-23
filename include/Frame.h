@@ -44,6 +44,21 @@
 // #include <object_slam/Object_landmark.h>
 // #include <object_slam/g2o_Object.h>
 
+// add plane
+#include "MapPlane.h"
+#include <pcl/common/transforms.h>
+#include <pcl/point_types.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/visualization/cloud_viewer.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/radius_outlier_removal.h>
+#include <pcl/segmentation/organized_multi_plane_segmentation.h>
+#include <pcl/features/integral_image_normal.h>
+
 typedef Eigen::Matrix<double,2,1> Vector2d;
 typedef Eigen::Matrix<double,3,1> Vector3d;
 typedef Eigen::Matrix<double,4,1> Vector4d;
@@ -57,6 +72,7 @@ namespace ORB_SLAM2
 class MapPoint;
 class KeyFrame;
 class Object_2D;
+class MapPlane;
 
 // // for optimization, not used in this version.
 // struct PairObjs
@@ -184,14 +200,6 @@ public:
     Eigen::MatrixXd boxes_eigen;    // object box, Eigen::MatrixXd format.
     bool have_detected = false;             // whether detected objects in current frame.
 
-    // // for optimization.
-    // typedef Eigen::Matrix<double,5,1> Vector5d;
-    // typedef Eigen::Matrix<double,6,1> Vector6d;
-    // std::vector<Vector6d> LineFrameToFrameWithMappoint;
-    // std::vector<Vector5d> LineFrameToFrameWithFeature;
-    // std::vector<PairObjs> mvPairObjs;
-    // std::vector<SingleObj> mvSingleObj;
-
     // Calibration matrix and OpenCV distortion parameters.
     cv::Mat mK;
     static float fx;
@@ -288,6 +296,28 @@ public:
     static float mnMaxY;
 
     static bool mbInitialComputations;
+
+    // add plane --------------------------
+    typedef pcl::PointXYZRGB PointT;
+    typedef pcl::PointCloud<PointT> PointCloud;
+
+    std::vector<PointCloud> mvPlanePoints;
+    std::vector<PointCloud> mvBoundaryPoints;
+    std::vector<cv::Mat> mvPlaneCoefficients;
+    std::vector<MapPlane *> mvpMapPlanes;
+    std::vector<bool> mvbPlaneOutlier;
+    int mnPlaneNum;
+    int mnRealPlaneNum;
+    bool mbNewPlane; // used to determine a keyframe
+    // add plane --------------------------
+
+    // add plane --------------------------
+    void ComputePlanesFromOrganizedPointCloud(const cv::Mat &imDepth);
+    void GeneratePlanesFromBoundries(const cv::Mat &imDepth);
+    bool CaculatePlanes(const cv::Mat &inputplane, const cv::Mat &inputline);
+    bool PlaneNotSeen(const cv::Mat &coef);
+    cv::Mat ComputePlaneWorldCoeff(const int &idx);
+    // add plane --------------------------
 
 
 private:
