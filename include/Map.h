@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-10-29 10:08:18
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-12-21 18:34:49
+ * @LastEditTime: 2021-12-23 21:08:38
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/include/Map.h
  */
@@ -26,8 +26,6 @@
 #include "KeyFrame.h"
 #include "Frame.h"
 #include <set>
-
-#include "Modeler.h"
 
 #include <mutex>
 #include <set>
@@ -53,9 +51,6 @@ public:
     typedef pcl::PointCloud<PointT> PointCloud;
     Map();
 
-    void SetModeler(Modeler *pModeler);
-    Modeler* GetModeler();
-
     void AddKeyFrame(KeyFrame* pKF);
     void AddMapPoint(MapPoint* pMP);
     void EraseMapPoint(MapPoint* pMP);
@@ -65,8 +60,6 @@ public:
 
     // void AddObjectMapPoints(MapPoint* pMP);
 
-    void UpdateModel(Model* pModel);
-    Model* GetModel();
 
     std::vector<KeyFrame*> GetAllKeyFrames();
     std::vector<MapPoint*> GetAllMapPoints();
@@ -123,9 +116,6 @@ protected : std::set<MapPoint *> mspMapPoints;
 
     long unsigned int mnMaxKFid;
 
-    Model* mpModel;
-
-    Modeler* mpModeler;
 
     std::mutex mMutexMap;
 };

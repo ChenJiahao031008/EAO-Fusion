@@ -30,19 +30,9 @@
 
 #include "YOLOv3SE.h"
 
-// line
-#include <line_lbd/line_descriptor.hpp>
-#include <line_lbd/line_lbd_allclass.h>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
-// cube slam.
-#include "detect_3d_cuboid/matrix_utils.h"
-#include "detect_3d_cuboid/detect_3d_cuboid.h"
-
-// // 3d cube.
-// #include <object_slam/Object_landmark.h>
-// #include <object_slam/g2o_Object.h>
 
 // add plane
 #include "MapPlane.h"
@@ -74,27 +64,6 @@ class KeyFrame;
 class Object_2D;
 class MapPlane;
 
-// // for optimization, not used in this version.
-// struct PairObjs
-// {
-//     Vector6d mvLineWithMappoint;
-//     Vector6d mvLineWithMapObjsCenter;
-//     Vector4d mvLineWithFeature;
-//     int mWeightTwo;
-// };
-
-// // for optimization, not used in this version.
-// struct SingleObj
-// {
-//     Vector3d mCenter3D;
-//     Vector2d mCenter2D;
-//     std::vector<Vector3d> mvSingleObjMapPointsPos;
-//     std::vector<Vector2d> mvSingleObjMapfearurePos;
-//     Vector6d mRect;
-//     Vector6d mDetectedRect;
-//     int mWeightOne;
-//     Vector3d mAssMapObjCenter;
-// };
 
 class Frame
 {
@@ -113,7 +82,6 @@ public:
           const cv::Mat &imDepth,
           const double &timeStamp,
           ORBextractor *extractor,
-          line_lbd_detect *line_lbd_ptr_frame, // line detect.
           ORBVocabulary *voc,
           cv::Mat &K,
           cv::Mat &distCoef,
@@ -129,7 +97,6 @@ public:
             const cv::Mat &rawImage,
             const double &timeStamp,
             ORBextractor* extractor,
-            line_lbd_detect* line_lbd_ptr_frame,
             ORBVocabulary* voc,
             cv::Mat &K,
             cv::Mat &distCoef,
@@ -186,8 +153,6 @@ public:
     // Feature extractor. The right is used only in the stereo case.
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
 
-    // line.
-    line_lbd_detect* mpline_lbd_ptr_frame;
 
     // Frame timestamp.
     double mTimeStamp;
@@ -238,12 +203,6 @@ public:
     // In the RGB-D case, RGB images can be distorted.
     std::vector<cv::KeyPoint> mvKeys, mvKeysRight;
     std::vector<cv::KeyPoint> mvKeysUn;
-
-    // line.
-    std::vector< KeyLine> keylines_raw, keylines_out;
-    cv::Mat all_lines_mat;
-    Eigen::MatrixXd all_lines_eigen;
-    std::vector<Eigen::MatrixXd> vObjsLines;
 
     // Corresponding stereo coordinate and depth for each keypoint.
     // "Monocular" keypoints have a negative value.

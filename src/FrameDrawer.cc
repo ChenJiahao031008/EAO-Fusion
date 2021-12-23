@@ -229,25 +229,7 @@ cv::Mat FrameDrawer::DrawYoloInfo(cv::Mat &im, bool bText)
                         2);
         }
 
-        // draw lines in the box
-        for(int obj_id = 0; obj_id < DObjsLines.size(); obj_id ++)
-        {
-            for(int line_id = 0; line_id < DObjsLines[obj_id].rows(); line_id++)
-            {
-                cv::Scalar lineColor;
-                int R = ( rand() % (int) ( 255 + 1 ) );
-                int G = ( rand() % (int) ( 255 + 1 ) );
-                int B = ( rand() % (int) ( 255 + 1 ) );
-                lineColor = cv::Scalar( R, G, B );
 
-                cv::line(   im,
-                            cv::Point2f( DObjsLines[obj_id](line_id, 0), DObjsLines[obj_id](line_id, 1)),
-                            cv::Point2f( DObjsLines[obj_id](line_id, 2), DObjsLines[obj_id](line_id, 3)),
-                            cv::Scalar( 255, 255, 0 ),
-                            //lineColor,
-                            2.0);
-            }
-        }
 
         // draw bounding box.
         cv::rectangle(  im,
@@ -275,15 +257,10 @@ void FrameDrawer::Update(Tracking *pTracker)
     mvbMap = vector<bool>(N,false);
 
     // NOTE [EAO]
-    // key line
-    Dkeylines_raw = pTracker->mCurrentFrame.keylines_raw;
-    Dkeylines_out = pTracker->mCurrentFrame.keylines_out;
     DTimeStamp = pTracker->mCurrentFrame.mTimeStamp;
     // object detection results.
     Dboxes = pTracker->mCurrentFrame.boxes;
     have_detected = pTracker->mCurrentFrame.have_detected;
-    // object line.
-    DObjsLines = pTracker->mCurrentFrame.vObjsLines;
 
     mbOnlyTracking = pTracker->mbOnlyTracking;
 

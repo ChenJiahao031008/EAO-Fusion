@@ -2,12 +2,11 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 14:59:42
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-11-04 15:34:31
+ * @LastEditTime: 2021-12-23 21:54:25
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/src/imu_subscriber.cc
  */
 #include "imu_subscriber.h"
-#include "glog/logging.h"
 
 
 IMUSubscriber::IMUSubscriber(ros::NodeHandle& nh, std::string topic_name, size_t buff_size)

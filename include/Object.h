@@ -18,10 +18,6 @@
 #include "MapPoint.h"
 #include <mutex>
 
-// cube slam.
-#include "detect_3d_cuboid/matrix_utils.h"
-#include "detect_3d_cuboid/detect_3d_cuboid.h"
-
 // Eigen
 #include <Eigen/Core>
 #include <Eigen/Dense>
@@ -87,8 +83,6 @@ namespace ORB_SLAM2
             cv::Mat sum_pos_3d;         // Summation of points observed in the current frame.
             cv::Mat sum_pos_3d_map;     // Summation of points observed in the map.
 
-            // line.
-            Eigen::MatrixXd mObjLinesEigen;
 
             void CopyBoxes(const BoxSE &box);           // copy box to object_2d.
             void ComputeMeanAndStandardFrame();         // compute the mean and standard deviation of object points in current frame.

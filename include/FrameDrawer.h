@@ -22,9 +22,6 @@
 
 #include<mutex>
 
-// line.
-#include <line_lbd/line_descriptor.hpp>
-#include <line_lbd/line_lbd_allclass.h>
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
@@ -159,14 +156,11 @@ protected:
     vector<int> mvIniMatches;
     int mState;
 
-    // lines.
-    std::vector< KeyLine> Dkeylines_raw, Dkeylines_out;
     double DTimeStamp;
 
     // bounding box.
     std::vector<BoxSE> Dboxes;
     bool have_detected;
-    std::vector<Eigen::MatrixXd> DObjsLines;    // object lines.
 
     Map* mpMap;
 

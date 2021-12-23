@@ -72,25 +72,14 @@ void Viewer::Run()
     pangolin::Var<bool> menuShowPoints("menu.Show Points",true,true);
     pangolin::Var<bool> menuShowKeyFrames("menu.Show KeyFrames",true,true);
     pangolin::Var<bool> menuShowGraph("menu.Show Graph",true,true);
-    pangolin::Var<bool> menuShowSemiDense("menu.Show SemiDense",true,true);
     pangolin::Var<double> menuSigmaTH("menu.Sigma",0.02,1e-10,0.05,false);
     pangolin::Var<bool> menuCameraView("menu.Camera View",true,true);
-    pangolin::Var<bool> menuShowModel("menu.Show Model", false,true);
-    pangolin::Var<bool> menuShowTexture("menu.Show Texture", false,true);
 
-    pangolin::Var<bool> menuShowCubeObj("menu.Show CubeObj",true,true);
     pangolin::Var<bool> menuShowQuadricObj("menu.Show QuadricObj",true,true);
 
     pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode",false,true);
     pangolin::Var<bool> menuReset("menu.Reset",false,false);
 
-    pangolin::Var<bool> menuShowBottle("menu.Show Bottles",true,true);
-    pangolin::Var<bool> menuShowChair("menu.Show Chairs",true,true);
-    pangolin::Var<bool> menuShowTvmonitors("menu.Show Tvmonitors",true,true);
-    pangolin::Var<bool> menuShowKeyboard("menu.Show Keyboard",true,true);
-    pangolin::Var<bool> menuShowMouse("menu.Show Mouse",true,true);
-    pangolin::Var<bool> menuShowBook("menu.Show Books",true,true);
-    pangolin::Var<bool> menuShowBear("menu.Show Bear",true,true);
 
     // add plane
     pangolin::Var<bool> menuShowPlanes("menu.Show Planes", true, true);
@@ -142,7 +131,6 @@ void Viewer::Run()
         }
         else if(menuFollowCamera && !bFollow)
         {
-//            s_cam.SetModelViewMatrix(pangolin::ModelViewLookAt(mViewpointX,mViewpointY,mViewpointZ, 0,0,0,0.0,-1.0, 0.0));
             s_cam.Follow(Twc);
             bFollow = true;
         }
@@ -184,31 +172,17 @@ void Viewer::Run()
             mpMapDrawer->DrawKeyFrames(menuShowKeyFrames,menuShowGraph);
         if(menuShowPoints)
             mpMapDrawer->DrawMapPoints();
-        if(menuShowSemiDense)
-            mpMapDrawer->DrawSemiDense(menuSigmaTH);
 
         // step draw objects.
-        if(menuShowCubeObj || menuShowQuadricObj)
+        if( menuShowQuadricObj)
         {
-            mpMapDrawer->DrawObject(menuShowCubeObj, menuShowQuadricObj,
-                                    mflag,
-                                    menuShowBottle, menuShowChair, menuShowTvmonitors,
-                                    menuShowKeyboard,menuShowMouse,menuShowBook,menuShowBear);
+            mpMapDrawer->DrawObject(menuShowQuadricObj,
+                                    mflag);
         }
         // add plane
         if (menuShowPlanes)
             mpMapDrawer->DrawMapPlanesOld();
         // add plane end
-
-        if(menuShowModel && menuShowTexture) {
-            mpMapDrawer->DrawModel();
-        }
-        else if (menuShowModel && !menuShowTexture) {
-            mpMapDrawer->DrawTriangles(Twc);
-        }
-        else if (!menuShowModel && menuShowTexture) {
-            mpMapDrawer->DrawFrame();
-        }
 
         pangolin::FinishFrame();
 
@@ -256,10 +230,8 @@ void Viewer::Run()
             bFollow = true;
             menuFollowCamera = true;
 
-            menuShowSemiDense = true;
             menuCameraView = true;
-            menuShowModel = true;
-            menuShowTexture = true;
+
 
             mpSystem->Reset();
             menuReset = false;

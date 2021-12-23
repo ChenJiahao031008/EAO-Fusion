@@ -2,12 +2,12 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 14:59:42
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-11-04 17:17:31
+ * @LastEditTime: 2021-12-23 21:54:18
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/src/image_subscriber.cc
  */
 #include "image_subscriber.h"
-#include "glog/logging.h"
+
 
 IMGSubscriber::IMGSubscriber(ros::NodeHandle &nh, std::string color_topic_name, std::string depth_topic_name, size_t buff_size)
     : it_(nh)

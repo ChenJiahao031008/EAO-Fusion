@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 14:29:27
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-12-07 20:55:55
+ * @LastEditTime: 2021-12-23 21:54:13
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/message_flow.h
  */
@@ -26,7 +26,6 @@
 #include <Eigen/Dense>
 
 #include "Global.h"
-#include "glog/logging.h"
 #include "image_transport/image_transport.h"
 #include "cv_bridge/cv_bridge.h"
 #include "sensor_msgs/image_encodings.h"

@@ -15,7 +15,6 @@
 #include "ORBmatcher.h"
 #include "Optimizer.h"
 
-#include "ProbabilityMapping.h"
 #include "Object.h"
 
 #include<mutex>

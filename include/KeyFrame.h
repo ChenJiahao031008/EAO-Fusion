@@ -22,7 +22,6 @@
 #define KEYFRAME_H
 
 #include "MapPoint.h"
-#include "ProbabilityMapping.h"
 #include "BowVector.h"
 #include "FeatureVector.h"
 #include "ORBVocabulary.h"
@@ -174,10 +173,6 @@ public:
     static long unsigned int nNextMappingId;
     long unsigned int mnMappingId;
     std::mutex mMutexMappingId;
-    cv::Mat mLines; // line segments, each row: (sx, sy, ex, ey)
-    cv::Mat mLineIndex; // segment correspondence index for each pixel (integers, init: -1)
-    cv::Mat mLinesSeg; // line segments given by depth and pixel: (sx, sy, ex, ey)
-	cv::Mat mLines3D; // 3D line segments, each row: (sx, sy, sz, ex, ey, ez)
     cv::Mat mEdgeIndex; // edge chains correspondence index for each pixel (integers, init: -1)
     EdgeMap* mEdgeMap;
 
