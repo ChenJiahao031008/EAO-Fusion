@@ -1,3 +1,11 @@
+/*
+ * @Author: Chen Jiahao
+ * @Date: 2021-10-29 10:08:18
+ * @LastEditors: Chen Jiahao
+ * @LastEditTime: 2021-12-21 19:41:26
+ * @Description: file content
+ * @FilePath: /catkin_ws/src/EAO-SLAM/include/Viewer.h
+ */
 /**
 * This file is part of ORB-SLAM2.
 *
@@ -40,7 +48,7 @@ class System;
 class Viewer
 {
 public:
-    Viewer( System* pSystem, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer, 
+    Viewer( System* pSystem, FrameDrawer* pFrameDrawer, MapDrawer* pMapDrawer,
             Tracking *pTracking, const string &strSettingPath, const string &flag);
 
     // Main thread function. Draw points, keyframes, the current camera pose and the last processed
@@ -91,5 +99,5 @@ private:
 
 
 #endif // VIEWER_H
-	
+
 

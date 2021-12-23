@@ -1,6 +1,12 @@
 #include "message_flow.h"
 #include <cassert>
 
+// #define BACKWARD_HAS_DW 1
+// #include "backward.hpp"
+// namespace backward
+// {
+//     backward::SignalHandling sh;
+// }
 
 Eigen::Matrix4d INIT_POSE = Eigen::Matrix4d::Identity();
 
@@ -12,6 +18,7 @@ RGBDIMessageFlow::RGBDIMessageFlow(ros::NodeHandle &nh)
 {
     // 初始化图像
     image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 1000);
+    // image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/rgb/image_color", "/camera/depth/image", 1000);
     // 初始化IMU
     imu_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/camera/imu", 500000);
 
@@ -312,10 +319,12 @@ RGBDMessageFlow::RGBDMessageFlow(ros::NodeHandle &nh)
 {
     // 初始化图像
     image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 1000);
+    // image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/rgb/image_color", "/camera/depth/image", 1000);
 
     // 读取参数文件
     const std::string VocFile = WORK_SPACE_PATH + "/Vocabulary/ORBvoc.bin";
-    const std::string YamlFile = WORK_SPACE_PATH + "/ros_test/config/D435i.yaml";
+    // const std::string YamlFile = WORK_SPACE_PATH + "/ros_test/config/D435i.yaml";
+    const std::string YamlFile = WORK_SPACE_PATH + "/ros_test/config/TUM2.yaml";
 
     // 读取launch文件中的参数
     ros::param::param<std::string>("~sensor", sensor, "RGBD");

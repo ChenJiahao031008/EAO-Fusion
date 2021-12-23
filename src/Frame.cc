@@ -64,7 +64,16 @@ Frame::Frame(const Frame &frame)
       mvScaleFactors(frame.mvScaleFactors),
       mvInvScaleFactors(frame.mvInvScaleFactors),
       mvLevelSigma2(frame.mvLevelSigma2),
-      mvInvLevelSigma2(frame.mvInvLevelSigma2)
+      mvInvLevelSigma2(frame.mvInvLevelSigma2),
+      //add plane
+      mvPlanePoints(frame.mvPlanePoints), //add plane
+      mvPlaneCoefficients(frame.mvPlaneCoefficients),
+      mbNewPlane(frame.mbNewPlane),
+      mvpMapPlanes(frame.mvpMapPlanes),
+      mnPlaneNum(frame.mnPlaneNum),
+      mvbPlaneOutlier(frame.mvbPlaneOutlier),
+      mnRealPlaneNum(frame.mnRealPlaneNum),
+      mvBoundaryPoints(frame.mvBoundaryPoints)
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
@@ -141,6 +150,7 @@ Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeSt
     AssignFeaturesToGrid();
 }
 
+//rgbd
 Frame::Frame(const cv::Mat &rawImage, // color image.
              const cv::Mat &imGray,
              const cv::Mat &imDepth,
@@ -231,8 +241,147 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     // save to frame.
     all_lines_eigen = all_lines_raw;
 
+    // add plane --------------------------
+    // 由于特征提取时间和面特征提取时间加在一起都没有目标检测时间耗时大，因此这里并没有采用并行处理的方法
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    ComputePlanesFromOrganizedPointCloud(imDepth);
+    std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+    double t12 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+    // std::cout << "[COST TIME] Plane Extraction Time is : " << t12 << std::endl;
+    mnRealPlaneNum = mvPlanePoints.size();
+    mnPlaneNum = mvPlanePoints.size();
+    // std::cout << "[INFO] Plane Num is : " << mnPlaneNum << std::endl;
+    mvpMapPlanes = vector<MapPlane *>(mnPlaneNum, static_cast<MapPlane *>(nullptr));
+    mvbPlaneOutlier = vector<bool>(mnPlaneNum, false);
 }
 
+// add plane -----------------------------
+
+void Frame::ComputePlanesFromOrganizedPointCloud(const cv::Mat &imDepth)
+{
+    PointCloud::Ptr inputCloud(new PointCloud());
+
+    //TODO: 参数传递
+    int cloudDis = 3;
+    int min_plane = 500;
+    float AngTh = 3.0;
+    float DisTh = 0.05;
+
+    // 间隔cloudDis进行采样
+    for (int m = 0; m < imDepth.rows; m += cloudDis)
+    {
+        for (int n = 0; n < imDepth.cols; n += cloudDis)
+        {
+            float d = imDepth.ptr<float>(m)[n];
+            PointT p;
+            p.z = d;
+            p.x = (n - cx) * p.z / fx;
+            p.y = (m - cy) * p.z / fy;
+            p.r = 0;
+            p.g = 0;
+            p.b = 250;
+
+            inputCloud->points.push_back(p);
+        }
+    }
+    inputCloud->height = ceil(imDepth.rows / float(cloudDis));
+    inputCloud->width = ceil(imDepth.cols / float(cloudDis));
+
+    //估计法线
+    pcl::IntegralImageNormalEstimation<PointT, pcl::Normal> ne;
+    pcl::PointCloud<pcl::Normal>::Ptr cloud_normals(new pcl::PointCloud<pcl::Normal>);
+    ne.setNormalEstimationMethod(ne.AVERAGE_3D_GRADIENT);
+    ne.setMaxDepthChangeFactor(0.05f);
+    ne.setNormalSmoothingSize(10.0f);
+    ne.setInputCloud(inputCloud);
+    //计算特征值
+    ne.compute(*cloud_normals);
+
+    vector<pcl::ModelCoefficients> coefficients;
+    vector<pcl::PointIndices> inliers;
+    pcl::PointCloud<pcl::Label>::Ptr labels(new pcl::PointCloud<pcl::Label>);
+    vector<pcl::PointIndices> label_indices;
+    vector<pcl::PointIndices> boundary;
+
+    pcl::OrganizedMultiPlaneSegmentation<PointT, pcl::Normal, pcl::Label> mps;
+    mps.setMinInliers(min_plane);
+    mps.setAngularThreshold(0.017453 * AngTh);
+    mps.setDistanceThreshold(DisTh);
+    mps.setInputNormals(cloud_normals);
+    mps.setInputCloud(inputCloud);
+    // 该方法能够一次性提取几个面
+    std::vector<pcl::PlanarRegion<PointT>, Eigen::aligned_allocator<pcl::PlanarRegion<PointT>>> regions;
+    mps.segmentAndRefine(regions, coefficients, inliers, labels, label_indices, boundary);
+
+    pcl::ExtractIndices<PointT> extract;
+    extract.setInputCloud(inputCloud);
+    extract.setNegative(false);
+
+    // srand(time(0));
+    // 每次提取获得: 1）平面的系数Mat（mvPlaneCoefficients）
+    //             2) 平面的点云（mvPlanePoints）
+    //             3）面边界上的点云（mvBoundaryPoints）
+    for (int i = 0; i < inliers.size(); ++i)
+    {
+        PointCloud::Ptr planeCloud(new PointCloud());
+        cv::Mat coef = (cv::Mat_<float>(4, 1) << coefficients[i].values[0],
+                        coefficients[i].values[1],
+                        coefficients[i].values[2],
+                        coefficients[i].values[3]);
+        // 要求距离d大于0
+        if (coef.at<float>(3) < 0)
+            coef = -coef;
+
+        if (!PlaneNotSeen(coef))
+        {
+            continue;
+        }
+        extract.setIndices(boost::make_shared<pcl::PointIndices>(inliers[i]));
+        extract.filter(*planeCloud);
+
+        mvPlanePoints.push_back(*planeCloud);
+
+        PointCloud::Ptr boundaryPoints(new PointCloud());
+        // 获得平面的边界点
+        boundaryPoints->points = regions[i].getContour();
+        mvBoundaryPoints.push_back(*boundaryPoints);
+        mvPlaneCoefficients.push_back(coef);
+    }
+}
+
+bool Frame::PlaneNotSeen(const cv::Mat &coef)
+{
+    // 现有的平面实例集mvPlaneCoefficients
+    for (int j = 0; j < mvPlaneCoefficients.size(); ++j)
+    {
+        cv::Mat pM = mvPlaneCoefficients[j];
+        // 两个平面的距离d和夹角 $ a\cdot b = |a||b| \cos\theta = \cos\theta $
+        float d = pM.at<float>(3, 0) - coef.at<float>(3, 0);
+        float angle = pM.at<float>(0, 0) * coef.at<float>(0, 0) +
+                      pM.at<float>(1, 0) * coef.at<float>(1, 0) +
+                      pM.at<float>(2, 0) * coef.at<float>(2, 0);
+        // 判断平面实例是否和当前观测平面平行或者重叠
+        // 1. 两个平面间距过大
+        if (d > 0.2 || d < -0.2)
+            continue;
+        // 2. 夹角处于[20，160] or [-160, -20]范围时：夹角大于一定角度
+        if (angle < 0.9397 && angle > -0.9397)
+            continue;
+        return false;
+    }
+
+    return true;
+}
+
+cv::Mat Frame::ComputePlaneWorldCoeff(const int &idx)
+{
+    cv::Mat temp;
+    // 注意这里是 mTwc -> mTcw -> tmp: 相当于先求逆再转置，符合平面转换公式
+    cv::transpose(mTcw, temp);
+    return temp * mvPlaneCoefficients[idx];
+}
+
+// add plane end -----------------------------
 
 Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
     :mpORBvocabulary(voc),mpORBextractorLeft(extractor),mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
@@ -381,19 +530,7 @@ Frame::Frame(   const cv::Mat &rawImage,                // color image.
 
     // save to frame.
     all_lines_eigen = all_lines_raw;
-    // //std::cout << "all_lines_eigen \n" << all_lines_eigen << std::endl;
-	// 				/*
-	// 				std::cout << "all_lines_raw \n" << all_lines_raw << std::endl;
-	// 				518.164  179.13     533      46
-	// 				453.637 371.208   516.2 180.066
-	// 				285.62 322.261 451.626 372.243
-	// 				290.387 120.984 285.264 319.981
-	// 				384.164 22.1538 291.708 120.726
-	// 				514.869 171.607 290.926 123.344
-	// 				380.963  167.12 398.815 172.601
-	// 				381.094 202.619 395.935 206.264
-	// 				397.868 176.387 379.907 170.274
-	// 				*/
+
 }
 
 void Frame::AssignFeaturesToGrid()

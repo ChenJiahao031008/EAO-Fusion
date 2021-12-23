@@ -44,7 +44,8 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     mnMaxY(F.mnMaxY), mK(F.mK), mvpMapPoints(F.mvpMapPoints), mpKeyFrameDB(pKFDB),
     mpORBvocabulary(F.mpORBvocabulary), mbFirstConnection(true), mpParent(NULL), mbNotErase(false),
     mbToBeErased(false), mbBad(false), mbNotEraseSemiDense(false),
-    mbNotEraseDrawer(false), mHalfBaseline(F.mb/2), mpMap(pMap)
+    mbNotEraseDrawer(false), mHalfBaseline(F.mb/2), mpMap(pMap),
+    mvPlanePoints(F.mvPlanePoints), mvPlaneCoefficients(F.mvPlaneCoefficients), mnPlaneNum(F.mnPlaneNum), mvpMapPlanes(F.mvpMapPlanes), mbNewPlane(F.mbNewPlane), mvBoundaryPoints(F.mvBoundaryPoints), mnRealPlaneNum(F.mnRealPlaneNum)
 {
     mnId=nNextId++;
 
@@ -193,7 +194,7 @@ void KeyFrame::UpdateBestCovisibles()
     }
 
     mvpOrderedConnectedKeyFrames = vector<KeyFrame*>(lKFs.begin(),lKFs.end());
-    mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());    
+    mvOrderedWeights = vector<int>(lWs.begin(), lWs.end());
 }
 
 set<KeyFrame*> KeyFrame::GetConnectedKeyFrames()
@@ -491,7 +492,7 @@ void KeyFrame::SetErase()
 }
 
 void KeyFrame::SetBadFlag()
-{   
+{
     {
         unique_lock<mutex> lock(mMutexConnections);
         if(mnId==0)
@@ -901,6 +902,45 @@ vector<float> KeyFrame::GetTexCoordinate(float x, float y, float z)
         }
     }
     return uv;
+}
+
+
+// add plane ----------------------------------
+KeyFrame *MapPlane::GetReferenceKeyFrame()
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    return mpRefKF;
+}
+
+vector<MapPlane *> KeyFrame::GetMapPlaneMatches()
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    return mvpMapPlanes;
+}
+
+void KeyFrame::AddMapPlane(ORB_SLAM2::MapPlane *pMP, const int &idx)
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    mvpMapPlanes[idx] = pMP;
+}
+
+void KeyFrame::ReplaceMapPlaneMatch(const int &idx, MapPlane *pMP)
+{
+    mvpMapPlanes[idx] = pMP;
+}
+
+void KeyFrame::EraseMapPlaneMatch(const int &idx)
+{
+    unique_lock<mutex> lock(mMutexFeatures);
+    mvpMapPlanes[idx] = static_cast<MapPlane *>(NULL);
+}
+
+void KeyFrame::EraseMapPlaneMatch(ORB_SLAM2::MapPlane *pMP)
+{
+    int idx = pMP->GetIndexInKeyFrame(this);
+    unique_lock<mutex> lock(mMutexFeatures);
+    if (idx >= 0)
+        mvpMapPlanes[idx] = static_cast<MapPlane *>(NULL);
 }
 
 } //namespace ORB_SLAM

@@ -353,6 +353,7 @@ bool LoopClosing::ComputeSim3()
     vector<KeyFrame*> vpLoopConnectedKFs = mpMatchedKF->GetVectorCovisibleKeyFrames();
     vpLoopConnectedKFs.push_back(mpMatchedKF);
     mvpLoopMapPoints.clear();
+    mvpLoopMapPlanes.clear();
     for(vector<KeyFrame*>::iterator vit=vpLoopConnectedKFs.begin(); vit!=vpLoopConnectedKFs.end(); vit++)
     {
         KeyFrame* pKF = *vit;
@@ -369,10 +370,29 @@ bool LoopClosing::ComputeSim3()
                 }
             }
         }
+
+        // add plane
+        // Retrieve MapPlanes seen in Loop Keyframe and neighbors
+        vector<MapPlane *> vpMapPlanes = pKF->GetMapPlaneMatches();
+        for (size_t i = 0, iend = vpMapPlanes.size(); i < iend; i++)
+        {
+            MapPlane *pMP = vpMapPlanes[i];
+            if (pMP)
+            {
+                if (pMP->mnLoopPointForKF != mpCurrentKF->mnId)
+                {
+                    mvpLoopMapPlanes.push_back(pMP);
+                    pMP->mnLoopPointForKF = mpCurrentKF->mnId;
+                }
+            }
+        }
     }
 
     // Find more matches projecting with the computed Sim3
     matcher.SearchByProjection(mpCurrentKF, mScw, mvpLoopMapPoints, mvpCurrentMatchedPoints,10);
+
+    // add plane
+    mpMap->SearchMatchedPlanes(mpCurrentKF, mScw, mvpLoopMapPlanes, mvpCurrentMatchedPlanes,false);
 
     // If enough matches accept Loop
     int nTotalMatches = 0;
@@ -585,7 +605,7 @@ void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap)
 {
     ORBmatcher matcher(0.8);
 
-    for(KeyFrameAndPose::const_iterator mit=CorrectedPosesMap.begin(), mend=CorrectedPosesMap.end(); mit!=mend;mit++)
+    for(KeyFrameAndPose::const_iterator mit = CorrectedPosesMap.begin(), mend=CorrectedPosesMap.end(); mit!=mend;mit++)
     {
         KeyFrame* pKF = mit->first;
 
@@ -595,15 +615,39 @@ void LoopClosing::SearchAndFuse(const KeyFrameAndPose &CorrectedPosesMap)
         vector<MapPoint*> vpReplacePoints(mvpLoopMapPoints.size(),static_cast<MapPoint*>(NULL));
         matcher.Fuse(pKF,cvScw,mvpLoopMapPoints,4,vpReplacePoints);
 
+        // add plane
+        vector<MapPlane *> vpMatchedPlanes;
+        mpMap->SearchMatchedPlanes(pKF, cvScw, mvpLoopMapPlanes, vpMatchedPlanes, false);
+
+
+
         // Get Map Mutex
         unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
         const int nLP = mvpLoopMapPoints.size();
+
         for(int i=0; i<nLP;i++)
         {
             MapPoint* pRep = vpReplacePoints[i];
             if(pRep)
             {
                 pRep->Replace(mvpLoopMapPoints[i]);
+            }
+        }
+
+        // add plane
+        for (size_t i = 0; i < vpMatchedPlanes.size(); i++)
+        {
+            if (vpMatchedPlanes[i])
+            {
+                MapPlane *pLoopMP = vpMatchedPlanes[i];
+                MapPlane *pCurMP = pKF->mvpMapPlanes[i];
+                if (pCurMP)
+                    pCurMP->Replace(pLoopMP);
+                else
+                {
+                    pKF->AddMapPlane(pLoopMP, i);
+                    pLoopMP->AddObservation(pKF, i);
+                }
             }
         }
     }

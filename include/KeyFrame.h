@@ -31,7 +31,11 @@
 #include "KeyFrameDatabase.h"
 
 #include <mutex>
-
+#include <pcl/common/transforms.h>
+#include <pcl/point_types.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/ModelCoefficients.h>
 
 class EdgeMap;
 
@@ -40,6 +44,7 @@ namespace ORB_SLAM2
 
 class Map;
 class MapPoint;
+class MapPlane;
 class Frame;
 class Object_2D;
 class KeyFrameDatabase;
@@ -47,6 +52,8 @@ class KeyFrameDatabase;
 class KeyFrame
 {
 public:
+    typedef pcl::PointXYZRGB PointT;
+    typedef pcl::PointCloud<PointT> PointCloud;
     KeyFrame(Frame &F, Map* pMap, KeyFrameDatabase* pKFDB);
 
     ~KeyFrame();
@@ -249,6 +256,19 @@ public:
     const int mnMaxY;
     const cv::Mat mK;
 
+    // add plane
+    int mnPlaneNum;
+    int mnRealPlaneNum;
+    bool mbNewPlane; // used to determine a keyframe
+    std::vector<MapPlane *> mvpMapPlanes;
+    std::vector<PointCloud> mvPlanePoints;
+    std::vector<PointCloud> mvBoundaryPoints;
+    std::vector<cv::Mat> mvPlaneCoefficients;
+    void ReplaceMapPlaneMatch(const int &idx, MapPlane *pMP);
+    void EraseMapPlaneMatch(const int &idx);
+    void EraseMapPlaneMatch(MapPlane *pMP);
+    void AddMapPlane(MapPlane *pMP, const int &idx);
+    std::vector<MapPlane *> GetMapPlaneMatches();
 
     // The following variables need to be accessed trough a mutex to be thread safe.
 protected:

@@ -129,6 +129,10 @@ protected:
     cv::Mat mScw;
     g2o::Sim3 mg2oScw;
 
+    // add plane
+    std::vector<MapPlane *> mvpLoopMapPlanes;
+    std::vector<MapPlane *> mvpCurrentMatchedPlanes;
+
     long unsigned int mLastLoopKFid;
 
     // Variables related to Global Bundle Adjustment

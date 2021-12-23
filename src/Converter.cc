@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 05/21/2019
@@ -170,7 +170,7 @@ cv::Mat Converter::toCvMat(const Eigen::Vector3f &PosEigen)
 Eigen::Vector3f Converter::toEigenVector(const cv::Mat &PosMat)
 {
     Eigen::Vector3f pos = Eigen::Vector3f(0, 0, 0);
-    
+
     pos[0] = PosMat.at<float>(0);
     pos[1] = PosMat.at<float>(1);
     pos[2] = PosMat.at<float>(2);
@@ -179,7 +179,7 @@ Eigen::Vector3f Converter::toEigenVector(const cv::Mat &PosMat)
 }
 
 // BRIEF [EAO-SLAM] cv::Mat --> Eigen::MatrixXd.
-Eigen::MatrixXd Converter::toEigenMatrixXd(const cv::Mat &cvMat) 
+Eigen::MatrixXd Converter::toEigenMatrixXd(const cv::Mat &cvMat)
 {
     Eigen::MatrixXd eigenMat;
     eigenMat.resize(cvMat.rows, cvMat.cols);
@@ -190,25 +190,49 @@ Eigen::MatrixXd Converter::toEigenMatrixXd(const cv::Mat &cvMat)
     return eigenMat;
 }
 
-// BRIEF [EAO-SLAM] 
+// BRIEF [EAO-SLAM]
 float Converter::bboxOverlapratio(const cv::Rect& rect1, const cv::Rect& rect2)
 {
     int overlap_area = (rect1&rect2).area();
     return (float)overlap_area/((float)(rect1.area()+rect2.area()-overlap_area));
 }
 
-// BRIEF [EAO-SLAM] 
+// BRIEF [EAO-SLAM]
 float Converter::bboxOverlapratioFormer(const cv::Rect& rect1, const cv::Rect& rect2)
 {
     int overlap_area = (rect1&rect2).area();
     return (float)overlap_area/((float)(rect1.area()));
 }
 
-// BRIEF [EAO-SLAM] 
+// BRIEF [EAO-SLAM]
 float Converter::bboxOverlapratioLatter(const cv::Rect& rect1, const cv::Rect& rect2)
 {
     int overlap_area = (rect1&rect2).area();
     return (float)overlap_area/((float)(rect2.area()));
+}
+
+// add plane
+g2o::Plane3D Converter::toPlane3D(const cv::Mat &coe)
+{
+    Eigen::Matrix<double, 4, 1, Eigen::ColMajor> V;
+    V << coe.at<float>(0, 0),
+        coe.at<float>(1, 0),
+        coe.at<float>(2, 0),
+        coe.at<float>(3, 0);
+    if (coe.at<float>(3, 0) < 0.0)
+        V = -V;
+    return g2o::Plane3D(V);
+}
+
+cv::Mat Converter::toCvMat(const g2o::Plane3D &plane)
+{
+    Eigen::Matrix<double, 4, 1, Eigen::ColMajor> V;
+    V = plane.toVector();
+    cv::Mat cvMat(4, 1, CV_32F);
+    for (int i = 0; i < 4; i++)
+        cvMat.at<float>(i, 0) = V(i, 0);
+
+    return cvMat.clone();
 }
 
 } //namespace ORB_SLAM

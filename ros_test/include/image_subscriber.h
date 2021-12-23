@@ -2,7 +2,7 @@
  * @Author: Chen Jiahao
  * @Date: 2021-11-04 15:02:06
  * @LastEditors: Chen Jiahao
- * @LastEditTime: 2021-11-05 19:55:21
+ * @LastEditTime: 2021-12-21 16:44:06
  * @Description: file content
  * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/image_subscriber.h
  */
@@ -31,7 +31,7 @@
 #include <message_filters/sync_policies/approximate_time.h>
 
 // using namespace std;
-
+// 近似同步器
 typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image> SyncPolicy;
 
 class IMGSubscriber {

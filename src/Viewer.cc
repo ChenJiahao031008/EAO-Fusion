@@ -92,10 +92,11 @@ void Viewer::Run()
     pangolin::Var<bool> menuShowBook("menu.Show Books",true,true);
     pangolin::Var<bool> menuShowBear("menu.Show Bear",true,true);
 
+    // add plane
+    pangolin::Var<bool> menuShowPlanes("menu.Show Planes", true, true);
+
     // Define Camera Render Object (for view / scene browsing)
     pangolin::OpenGlRenderState s_cam(
-//                pangolin::ProjectionMatrix(1024,768,mViewpointF,mViewpointF,512,389,0.1,1000),
-//                pangolin::ModelViewLookAt(mViewpointX,mViewpointY,mViewpointZ, 0,0,0,0.0,-1.0, 0.0)
             // carv: using calibrated camera center and focal length
             pangolin::ProjectionMatrix(mImageWidth,mImageHeight,mfx,mfy,mcx,mcy,0.1,1000),
             pangolin::ModelViewLookAt(0,0,0, 0,0,1, 0.0,-1.0, 0.0)
@@ -194,10 +195,11 @@ void Viewer::Run()
                                     menuShowBottle, menuShowChair, menuShowTvmonitors,
                                     menuShowKeyboard,menuShowMouse,menuShowBook,menuShowBear);
         }
+        // add plane
+        if (menuShowPlanes)
+            mpMapDrawer->DrawMapPlanesOld();
+        // add plane end
 
-        // TODO check opengl error?.
-        //CheckGlDieOnError()
-        // step carv: show model or triangle with light from camera
         if(menuShowModel && menuShowTexture) {
             mpMapDrawer->DrawModel();
         }
@@ -207,8 +209,6 @@ void Viewer::Run()
         else if (!menuShowModel && menuShowTexture) {
             mpMapDrawer->DrawFrame();
         }
-        //CheckGlDieOnError()
-
 
         pangolin::FinishFrame();
 
@@ -246,6 +246,9 @@ void Viewer::Run()
             menuShowGraph = true;
             menuShowKeyFrames = true;
             menuShowPoints = true;
+            // add plane --------------------
+            menuShowPlanes = true;
+            // add plane end -------------------
             menuLocalizationMode = false;
             if(bLocalizationMode)
                 mpSystem->DeactivateLocalizationMode();
