@@ -524,7 +524,7 @@ void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M)
 
 void MapDrawer::DrawMapPlanes(){
     pcl::VoxelGrid<PointT> voxel;
-    voxel.setLeafSize(0.02, 0.02, 0.02);
+    voxel.setLeafSize(0.05, 0.05, 0.05);
 
     const vector<long unsigned int> &vnRPs = mpMap->GetRemovedPlanes();
     const vector<MapPlane *> &vpMPs = mpMap->GetAllMapPlanes();
@@ -587,7 +587,7 @@ void MapDrawer::DrawMapPlanesOld()
     glPointSize(mPointSize / 2);
     glBegin(GL_POINTS);
     pcl::VoxelGrid<PointT> voxel;
-    voxel.setLeafSize(0.01, 0.01, 0.01);
+    voxel.setLeafSize(0.02, 0.02, 0.02);
     for (auto pMP : vpMPs)
     {
         map<KeyFrame *, int> observations = pMP->GetObservations();

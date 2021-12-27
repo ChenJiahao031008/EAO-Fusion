@@ -306,6 +306,12 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     cv::Mat rawImage = imRGB.clone();
 
+    // JBF filter
+    // JBF jointBilateralFilter;
+    // cv::Mat DepthFilter = jointBilateralFilter.Processor(rawImage, imDepth);
+    // JBF filter end
+
+    // semantic
     if (bSemanticOnline)
     {
         // unique_lock<mutex> lock(Semanticer->mMutexYOLOXQueue);
@@ -337,30 +343,44 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             CV_32F,           //输出图像的数据类型
             mDepthMapFactor); //缩放系数
 
+    cv::Mat mImDepth = imDepth.clone();
+
+    // string DepthFilterSettingsFile = WORK_SPACE_PATH + "/ros_test/config/Depth_Filter.yaml";
+    // cv::FileStorage fsSettings(DepthFilterSettingsFile, cv::FileStorage::READ);
+    // if (!fsSettings.isOpened())
+    // {
+    //     cerr << "[ERROR] Failed to Open Settings File " << std::endl;
+    //     exit(-1);
+    // }
+    // Config conf(fsSettings);
+    // Kernel kernel(conf);
+    // cv::Mat tmpmImDepth = kernel.FillInFast(mImDepth);
+    // mImDepth = tmpmImDepth;
+
     // undistort image:
     // TODO: 选择图像去畸变而不是点去畸变，对于大部分场景个人认为是不必要的
-    // 先转成灰度图去畸变再转回rgb，意义不明，只能理解为减少计算量
-    cv::Mat gray_imu;
-    cv::undistort(mImGray, gray_imu, mK, mDistCoef);
+    // // 先转成灰度图去畸变再转回rgb，意义不明，只能理解为减少计算量
+    // cv::Mat gray_imu;
+    // cv::undistort(mImGray, gray_imu, mK, mDistCoef);
 
-    cv::Mat rgb_imu;
-    cv::undistort(imRGB, rgb_imu, mK, mDistCoef);
-    if (rgb_imu.channels() == 1)
-    {
-        cvtColor(rgb_imu, rgb_imu, CV_GRAY2RGB);
-    }
-    else if (rgb_imu.channels() == 3)
-    {
-        if (!mbRGB)
-            cvtColor(rgb_imu, rgb_imu, CV_BGR2RGB);
-    }
-    else if (rgb_imu.channels() == 4)
-    {
-        if (mbRGB)
-            cvtColor(rgb_imu, rgb_imu, CV_RGBA2RGB);
-        else
-            cvtColor(rgb_imu, rgb_imu, CV_BGRA2RGB);
-    }
+    // cv::Mat rgb_imu;
+    // cv::undistort(imRGB, rgb_imu, mK, mDistCoef);
+    // if (rgb_imu.channels() == 1)
+    // {
+    //     cvtColor(rgb_imu, rgb_imu, CV_GRAY2RGB);
+    // }
+    // else if (rgb_imu.channels() == 3)
+    // {
+    //     if (!mbRGB)
+    //         cvtColor(rgb_imu, rgb_imu, CV_BGR2RGB);
+    // }
+    // else if (rgb_imu.channels() == 4)
+    // {
+    //     if (mbRGB)
+    //         cvtColor(rgb_imu, rgb_imu, CV_RGBA2RGB);
+    //     else
+    //         cvtColor(rgb_imu, rgb_imu, CV_BGRA2RGB);
+    // }
 
     // STEP 1. Construct Frame.
     mCurrentFrame = Frame(rawImage, // new: color image.
@@ -373,8 +393,8 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
                           mDistCoef,
                           mbf,
                           mThDepth,
-                          gray_imu,
-                          rgb_imu);
+                          mImGray,
+                          rawImage);
 
     vector<vector<int> > _mat;
     mCurrentFrame.have_detected = false;
@@ -385,21 +405,27 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
         // TODO online detect.
         std::vector<Object> currentObjs;
         auto start = std::chrono::system_clock::now();
+        int StopCount = 0;
         while (1){
             if (Semanticer->CheckResult()){
                 Semanticer->GetResult(currentObjs);
                 break;
             }
+            if (StopCount >= 5 && mState != NOT_INITIALIZED){
+                std::cout << "[WARRNING] DETECTER ERROR!" << std::endl;
+                break;
+            }
             usleep(5000);
+            StopCount++;
         }
 
         if (currentObjs.size() == 0)
         {
-            // std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
+            std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
         // 耗时计算
         auto end = std::chrono::system_clock::now();
-        // std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+        std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
 
         std::vector<BoxSE> boxes_online;
@@ -701,7 +727,7 @@ cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
 
         if (currentObjs.size() == 0)
         {
-            // std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
+            std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
         // 耗时计算
         // auto end = std::chrono::system_clock::now();
@@ -961,6 +987,7 @@ void Tracking::Track()
                 {
                     // note [EAO] for this opensource version, the mainly modifications are in the TrackWithMotionModel().
                     bOK = TrackWithMotionModel();
+
                     if (!bOK){
                         bOK = TrackReferenceKeyFrame();
                     }
@@ -1698,8 +1725,7 @@ bool Tracking::TrackWithMotionModel()
     mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
 
 
-
-    // fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint *>(NULL));
+    fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint *>(NULL));
 
     // *****************************
     // STEP 1. construct 2D object *

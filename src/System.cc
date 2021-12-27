@@ -268,6 +268,7 @@ void System::Shutdown()
         usleep(5000);
     }
     pangolin::BindToContext("ORB-SLAM2: Map Viewer");
+    std::cout << "FINISHED!" << std::endl;
 }
 
 void System::SaveTrajectoryTUM(const string &filename)

@@ -124,6 +124,8 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../Thirdparty/DBoW2/
     ${PROJECT_SOURCE_DIR}/../Thirdparty/g2o/g2o
     ${PROJECT_SOURCE_DIR}/../src/g2oAddition
+    ${PROJECT_SOURCE_DIR}/../include/PEAC
+    ${PROJECT_SOURCE_DIR}/../src/DepthFilter
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../lib)
@@ -161,6 +163,9 @@ add_library(${PROJECT_NAME}_lib SHARED
     ../src/MapPlane.cc
     ../src/g2oAddition/EdgePlane.cc
     ../src/g2oAddition/VertexPlane.cc
+    # depth filter
+    ../src/DepthFilter/JBF.cc
+    ../src/DepthFilter/Kernel.cc
 )
 
 

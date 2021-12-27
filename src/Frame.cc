@@ -9,6 +9,7 @@
 * Author: Yanmin Wu
 * E-mail: wuyanminmax@gmail.com
 */
+#include "Global.h"
 
 #include "Frame.h"
 #include "Converter.h"
@@ -233,7 +234,10 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     // add plane --------------------------
     // 由于特征提取时间和面特征提取时间加在一起都没有目标检测时间耗时大，因此这里并没有采用并行处理的方法
     std::chrono::steady_clock::time_point t5 = std::chrono::steady_clock::now();
-    ComputePlanesFromOrganizedPointCloud(imDepth);
+    // case1 :
+    // ComputePlanesFromOrganizedPointCloud(imDepth);
+    // case2:
+    ComputePlanesFromPEAC(imDepth);
     std::chrono::steady_clock::time_point t6 = std::chrono::steady_clock::now();
     double t56 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t5).count();
     std::cout << "[COST TIME] Plane Extraction Time is : " << t56 << std::endl;
@@ -255,7 +259,7 @@ void Frame::ComputePlanesFromOrganizedPointCloud(const cv::Mat &imDepth)
     PointCloud::Ptr inputCloud(new PointCloud());
 
     //TODO: 参数传递
-    int cloudDis = 3;
+    int cloudDis = 2;
     int min_plane = 500;
     float AngTh = 3.0;
     float DisTh = 0.05;
@@ -372,6 +376,87 @@ cv::Mat Frame::ComputePlaneWorldCoeff(const int &idx)
     // 注意这里是 mTwc -> mTcw -> tmp: 相当于先求逆再转置，符合平面转换公式
     cv::transpose(mTcw, temp);
     return temp * mvPlaneCoefficients[idx];
+}
+
+void Frame::ComputePlanesFromPEAC(const cv::Mat &imDepth)
+{
+    int cloudDis = 1;
+    int vertex_idx = 0;
+
+    // 间隔cloudDis进行采样
+    cloud.vertices.resize(imDepth.rows * imDepth.cols);
+    cloud.w = ceil(imDepth.cols / float(cloudDis));
+    cloud.h = ceil(imDepth.rows / float(cloudDis));
+
+    for (int m = 0; m < imDepth.rows; m += cloudDis)
+    {
+        for (int n = 0; n < imDepth.cols; n += cloudDis, vertex_idx++)
+        {
+            double d = (double)(imDepth.ptr<float>(m)[n]);
+            if (_isnan(d) ||  d > 4.0 || d < 0.2 )
+            {
+                // cloud.vertices[vertex_idx++] = Eigen::Vector3d(0, 0, d);
+                continue;
+            }
+            double x = ((double)n - cx) * d / fx;
+            double y = ((double)m - cy) * d / fy;
+            cloud.vertices[vertex_idx] = Eigen::Vector3d(x, y, d);
+        }
+    }
+
+    seg_img_ = cv::Mat(imDepth.rows, imDepth.cols, CV_8UC3);
+    plane_filter.run(&cloud, &plane_vertices_, &seg_img_);
+
+    plane_num_ = (int)plane_vertices_.size();
+    for (int i = 0; i < plane_num_; i++)
+    {
+        auto &indices = plane_vertices_[i];
+        // 遍历每平面上的点云
+        PointCloud::Ptr inputCloud(new PointCloud());
+        for (int j : indices)
+        {
+            PointT p;
+            p.x = (float)cloud.vertices[j][0];
+            p.y = (float)cloud.vertices[j][1];
+            p.z = (float)cloud.vertices[j][2];
+            // 插入点云
+            inputCloud->points.push_back(p);
+        }
+        auto extractedPlane = plane_filter.extractedPlanes[i];
+        double nx = extractedPlane->normal[0];
+        double ny = extractedPlane->normal[1];
+        double nz = extractedPlane->normal[2];
+        double cx = extractedPlane->center[0];
+        double cy = extractedPlane->center[1];
+        double cz = extractedPlane->center[2];
+
+        float d = (float)-(nx * cx + ny * cy + nz * cz);
+
+        pcl::VoxelGrid<PointT> voxel;
+        voxel.setLeafSize(0.05, 0.05, 0.05);
+        PointCloud::Ptr coarseCloud(new PointCloud());
+        voxel.setInputCloud(inputCloud);
+        voxel.filter(*coarseCloud);
+
+        cv::Mat coef = (cv::Mat_<float>(4, 1) << nx, ny, nz, d);
+
+        // 要求距离d大于0
+        if (coef.at<float>(3) < 0)
+            coef = -coef;
+
+        if (!PlaneNotSeen(coef))
+        {
+            continue;
+        }
+
+        //  将滤波后的点云放置到mvPlanePoints中，在我的理解可能是以此来代表平面的大小
+        mvBoundaryPoints.push_back(*coarseCloud);
+        mvPlanePoints.push_back(*coarseCloud);
+        mvPlaneCoefficients.push_back(coef);
+    }
+    cloud.vertices.clear();
+    seg_img_.release();
+    color_img_.release();
 }
 
 // add plane end -----------------------------
