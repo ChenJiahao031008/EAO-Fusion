@@ -39,6 +39,11 @@
 // #include "YOLOv3SE.h"
 #include "Converter.h"
 
+// 深度滤波
+#include "JBF.h"
+#include "Kernel.h"
+#include "Config.h"
+
 // YOLOX
 #include "Global.h"
 #include "YOLOX.h"

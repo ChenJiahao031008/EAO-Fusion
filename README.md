@@ -23,6 +23,7 @@
 + 分离RGBD和RGBD-IMU模块，在多个数据集下进行了测试
 + 增加平面约束，参考北航大佬的论文 [Object-oriented SLAM using Quadrics and Symmetry Properties for Indoor Environments]
 + 去除了立方体表示和直线特征
++ 平面特征上做了一定测试，选择PEAC替换了PCL自带的方法，不采用深度补全或者滤波（收益较小）
 
 **正在进行的修改：**
 

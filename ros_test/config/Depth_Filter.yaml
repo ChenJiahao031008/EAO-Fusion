@@ -1,0 +1,9 @@
+%YAML:1.0
+
+maxDepth    : 10
+minDepth    : 0.1
+
+FillType    : "fast"
+Extrapolate : 0
+BlurType    : "bilateral"
+Resize      : 0

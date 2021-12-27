@@ -54,6 +54,36 @@ typedef Eigen::Matrix<double,3,1> Vector3d;
 typedef Eigen::Matrix<double,4,1> Vector4d;
 typedef Eigen::Matrix<double,6,1> Vector6d;
 
+#include <Eigen/Eigen>
+#include "PEAC/AHCPlaneFitter.hpp"
+
+#include "Kernel.h"
+#include "Config.h"
+
+#ifdef __linux__
+#define _isnan(x) isnan(x)
+#endif
+
+struct ImagePointCloud
+{
+    std::vector<Eigen::Vector3d> vertices; // 3D vertices
+    int w, h;
+
+    inline int width() const { return w; }
+    inline int height() const { return h; }
+    inline bool get(const int row, const int col, double &x, double &y, double &z) const
+    {
+        const int pixIdx = row * w + col;
+        z = vertices[pixIdx][2];
+        // Remove points with 0 or invalid depth in case they are detected as a plane
+        if (z == 0 || std::_isnan(z))
+            return false;
+        x = vertices[pixIdx][0];
+        y = vertices[pixIdx][1];
+        return true;
+    }
+};
+
 namespace ORB_SLAM2
 {
 #define FRAME_GRID_ROWS 48
@@ -149,6 +179,16 @@ public:
 public:
     // Vocabulary used for relocalization.
     ORBVocabulary* mpORBvocabulary;
+
+    // plane extraction
+    ImagePointCloud cloud;
+    ahc::PlaneFitter<ImagePointCloud> plane_filter;
+    std::vector<std::vector<int>> plane_vertices_; // vertex indices each plane contains
+    cv::Mat seg_img_;                              // segmentation image
+    cv::Mat color_img_;                            // input color image
+    int plane_num_;
+    void ComputePlanesFromPEAC(const cv::Mat &imDepth);
+    // plane extraction end
 
     // Feature extractor. The right is used only in the stereo case.
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;
