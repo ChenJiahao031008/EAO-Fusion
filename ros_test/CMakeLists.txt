@@ -5,6 +5,8 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE release)
 ENDIF()
 
+add_compile_options(-std=c++14)
+
 # yolox
 ADD_DEFINITIONS("-w -O2 -pthread")
 option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
@@ -32,8 +34,8 @@ message(STATUS "Using opencv version ${OpenCV_VERSION}")
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 
-# # glog
-# include(../cmake_modules/glog.cmake)
+# glog
+include(../cmake_modules/glog.cmake)
 
 # find openmp
 find_package(OpenMP)
@@ -166,6 +168,8 @@ add_library(${PROJECT_NAME}_lib SHARED
     # depth filter
     ../src/DepthFilter/JBF.cc
     ../src/DepthFilter/Kernel.cc
+    # object
+    ../src/ObjectInstance.cc
 )
 
 
