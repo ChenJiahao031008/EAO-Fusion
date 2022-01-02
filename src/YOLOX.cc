@@ -37,6 +37,7 @@ YOLOX::YOLOX(const std::string &engine_file_path)
         output_size *= out_dims.d[j];
     }
     prob = new float[output_size];
+    std::cout << "[INFO] YOLOX INITED FINISHED!"<< std::endl;
 }
 
 YOLOX::~YOLOX()
@@ -398,7 +399,7 @@ void YOLOX::Detect()
     DecodeOutputs(prob, objects, scale, img_w, img_h);
     // DrawObjects(frame, objects);
     delete[] blob;
-    // std::cout << "objects.size() : " << objects.size() << std::endl;
+    std::cout << "objects.size() : " << objects.size() << std::endl;
 
     {
         unique_lock<mutex> lock(mMutexResQueue);
@@ -426,7 +427,7 @@ void YOLOX::Run()
         {
             Detect();
         }else{
-            usleep(5000);
+            usleep(1000);
         }
 
         if (CheckFinish())

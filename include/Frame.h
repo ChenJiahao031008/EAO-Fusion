@@ -33,7 +33,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 
-
+// add obj2d
+#include "ObjectInstance.h"
 // add plane
 #include "MapPlane.h"
 #include <pcl/common/transforms.h>
@@ -92,7 +93,9 @@ namespace ORB_SLAM2
 class MapPoint;
 class KeyFrame;
 class Object_2D;
+class Object2DInstance;
 class MapPlane;
+class Anchor;
 
 
 class Frame
@@ -204,6 +207,9 @@ public:
     std::vector<BoxSE> boxes;       // object box, vector<BoxSE> format.
     Eigen::MatrixXd boxes_eigen;    // object box, Eigen::MatrixXd format.
     bool have_detected = false;             // whether detected objects in current frame.
+
+    // std::vector<Object2DInstance> object2ds;
+    std::vector<Anchor> obsAnchors;
 
     // Calibration matrix and OpenCV distortion parameters.
     cv::Mat mK;

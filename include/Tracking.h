@@ -48,6 +48,9 @@
 #include "Global.h"
 #include "YOLOX.h"
 
+// add obj2d
+#include "ObjectInstance.h"
+
 namespace ORB_SLAM2
 {
 
@@ -58,6 +61,7 @@ class LocalMapping;
 class LoopClosing;
 class System;
 class YOLOX;
+
 
 
 class Tracking
@@ -156,6 +160,10 @@ public:
     bool finish_detected;
     std::vector<BoxSE> boxes_tracker;
     bool have_detected;
+
+    // add obj2d
+    std::vector<std::shared_ptr<Object2DInstance>> object2DVector;
+    std::vector<std::shared_ptr<Object3DInstance>> object3DVector;
 
     // Groundtruth.
     static bool mbReadedGroundtruth;

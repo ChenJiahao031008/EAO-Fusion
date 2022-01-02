@@ -345,42 +345,6 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     cv::Mat mImDepth = imDepth.clone();
 
-    // string DepthFilterSettingsFile = WORK_SPACE_PATH + "/ros_test/config/Depth_Filter.yaml";
-    // cv::FileStorage fsSettings(DepthFilterSettingsFile, cv::FileStorage::READ);
-    // if (!fsSettings.isOpened())
-    // {
-    //     cerr << "[ERROR] Failed to Open Settings File " << std::endl;
-    //     exit(-1);
-    // }
-    // Config conf(fsSettings);
-    // Kernel kernel(conf);
-    // cv::Mat tmpmImDepth = kernel.FillInFast(mImDepth);
-    // mImDepth = tmpmImDepth;
-
-    // undistort image:
-    // TODO: 选择图像去畸变而不是点去畸变，对于大部分场景个人认为是不必要的
-    // // 先转成灰度图去畸变再转回rgb，意义不明，只能理解为减少计算量
-    // cv::Mat gray_imu;
-    // cv::undistort(mImGray, gray_imu, mK, mDistCoef);
-
-    // cv::Mat rgb_imu;
-    // cv::undistort(imRGB, rgb_imu, mK, mDistCoef);
-    // if (rgb_imu.channels() == 1)
-    // {
-    //     cvtColor(rgb_imu, rgb_imu, CV_GRAY2RGB);
-    // }
-    // else if (rgb_imu.channels() == 3)
-    // {
-    //     if (!mbRGB)
-    //         cvtColor(rgb_imu, rgb_imu, CV_BGR2RGB);
-    // }
-    // else if (rgb_imu.channels() == 4)
-    // {
-    //     if (mbRGB)
-    //         cvtColor(rgb_imu, rgb_imu, CV_RGBA2RGB);
-    //     else
-    //         cvtColor(rgb_imu, rgb_imu, CV_BGRA2RGB);
-    // }
 
     // STEP 1. Construct Frame.
     mCurrentFrame = Frame(rawImage, // new: color image.
@@ -427,8 +391,8 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
         auto end = std::chrono::system_clock::now();
         std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
-
         std::vector<BoxSE> boxes_online;
+        std::vector<Anchor> obsAnchors;
         for (auto &objInfo : currentObjs)
         {
             if (objInfo.prob < 0.5)
@@ -447,28 +411,106 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             box.height = objInfo.rect.height;
             // box.m_class_name = "";
             boxes_online.push_back(box);
-        }
-        std::sort(boxes_online.begin(), boxes_online.end(), [](BoxSE a, BoxSE b) -> bool
-                  { return a.m_score > b.m_score; });
-        // save to current frame.
-        mCurrentFrame.boxes = boxes_online;
 
-        // std::vector<BoxSE> --> Eigen::MatrixXd.
-        int i = 0;
-        Eigen::MatrixXd eigenMat;
-
-        eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
-        for (auto &box : mCurrentFrame.boxes)
-        {
-            eigenMat(i, 0) = box.x;
-            eigenMat(i, 1) = box.y;
-            eigenMat(i, 2) = box.width;
-            eigenMat(i, 3) = box.height;
-            eigenMat(i, 4) = box.m_score;
-            i++;
+            // add obj2d
+            Anchor archor;
+            archor.class_id = objInfo.label;
+            archor.score = objInfo.prob;
+            archor.rect = objInfo.rect;
+            obsAnchors.push_back(archor);
+            // add obj2d end
         }
-        // save to current frame.
-        mCurrentFrame.boxes_eigen = eigenMat;
+
+
+            std::sort(boxes_online.begin(), boxes_online.end(), [](BoxSE a, BoxSE b) -> bool
+                    { return a.m_score > b.m_score; });
+            mCurrentFrame.boxes = boxes_online;
+            int i = 0;
+            Eigen::MatrixXd eigenMat;
+            eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
+            for (auto &box : mCurrentFrame.boxes)
+            {
+                eigenMat(i, 0) = box.x;
+                eigenMat(i, 1) = box.y;
+                eigenMat(i, 2) = box.width;
+                eigenMat(i, 3) = box.height;
+                eigenMat(i, 4) = box.m_score;
+                i++;
+            }
+            mCurrentFrame.boxes_eigen = eigenMat;
+
+        std::sort(obsAnchors.begin(), obsAnchors.end(), [](Anchor a, Anchor b) -> bool { return a.score > b.score; });
+        mCurrentFrame.obsAnchors = obsAnchors;
+
+        // // CJH data association
+        // if (object2DVector.empty() && !obsAnchors.empty())
+        // {
+        //     for (size_t i=0; i<obsAnchors.size(); ++i){
+        //         auto obj = std::make_shared<Object2DInstance>();
+        //         // auto obj = new Object2DInstance;
+        //         obj->id = obsAnchors.size()-1;
+        //         obj->anchor = obsAnchors[i];
+        //         obj->count++;
+        //         obj->visibility++;
+        //         obj->objInFrames.emplace_back(mCurrentFrame.mTimeStamp);
+        //         // TODO:特征提取、关联平面、提取平均深度、提取框内的特征点
+        //         object2DVector.emplace_back(std::move(obj));
+        //     }
+        // }else{
+        //     // TODO: 完成下述流程
+        //     // 两个for进行数据关联，关联方式先采用IoU，后续改为边缘特征
+        //         // 当与obj2D存在关联时：
+        //             // 校核类别和置信度，IoU重合但是类别不同不进行计数
+        //             // 校核框的范围，在图像边缘处不进行计数
+
+        //             // 如果该目标框已经和3D实例关联：
+        //                 // 3d-2d关联检测
+        //                 // 将该观测加入3D观测中来
+        //             // 如果该目标框未和3D实例关联，但是已经达到阈值（观测次数大于5，可观测比达到5成）：
+        //                 // 认为可生成3D实例（flag=1）
+        //         // 当与obj2D不存在关联，且IoU没有覆盖时：
+        //             // 新建obj2D实例
+
+        //     // 对于在视野中却没有被观测到的3D实例：
+        //         // 首先进行投影，
+        //         // 比较投影区域边缘纹理和存储的纹理，确定是否存在漏检
+
+        //     // 观测剩余没被关联的obj2d:
+        //         // 观测次数小于5的保留，计数器加1
+        //         // 观测次数大于5，可观测比达到5成，认为可以生成3D实例（flag=1）
+        //         // 观测次数大于30，可观测比未达到5成，删除目标候选
+
+        //     // flag=1时，单帧生成3D实例
+
+        //     // 开始实现：
+        //     const float TH_IOU = 0.7;
+        //     for (size_t i = 0; i < obsAnchors.size(); ++i){
+        //         Anchor anchor = obsAnchors[i];
+
+        //         for (size_t j = 0; j < object2DVector.size(); ++j){
+        //             auto obj2d = object2DVector[j];
+        //             // 使用追踪方法还是位姿投影法？
+        //             // UpdateAnchor(obj2d, );
+        //             // 计算IoU值大小
+        //             float score = obj2d->ComputeIoU(anchor);
+        //             // 重叠度很高，认为形成关联
+        //             if (score > TH_IOU)
+        //             {
+        //                 // 类别一致认为
+        //                 if (anchor.class_id == obj2d->anchor.class_id){
+        //                     if(isInImageBoundary()){
+        //                         obj2d->count++;
+        //                         obj2d->objInFrames.emplace_back(mCurrentFrame.mTimeStamp);
+        //                     }
+        //                 }
+        //                 obj2d->visibility++;
+        //             }else{
+        //                 anchor.eraseFlag = 1;
+        //             }
+        //         }
+        //     }
+        // }
+        // // CJH data association end
     }
     else
     {
@@ -1761,6 +1803,134 @@ bool Tracking::TrackWithMotionModel()
 
     if (nmatches < 20)
         return false;
+
+    // CJH data association ----------------------------------
+    std::vector<Anchor> &obsAnchors = mCurrentFrame.obsAnchors;
+    if (object2DVector.empty() && !obsAnchors.empty())
+    {
+        for (size_t i=0; i<obsAnchors.size(); ++i){
+            auto obj = std::make_shared<Object2DInstance>();
+            // auto obj = new Object2DInstance;
+            // TODO：写完后面的再去补一下前面缺的初始化项目
+            obj->id = obsAnchors.size()-1;
+            obj->anchor = obsAnchors[i];
+            obj->count++;
+            obj->visibility++;
+            auto ptrCurrentFrame = static_cast<std::shared_ptr<Frame>>(&mCurrentFrame);
+            obj->objInFrames.push_back(ptrCurrentFrame);
+            // TODO:特征提取、关联平面、提取平均深度、提取框内的特征点
+            object2DVector.emplace_back(std::move(obj));
+        }
+    }else{
+        // TODO: Case1: 完成下述流程
+        // 两个for进行数据关联，关联方式先采用IoU，后续改为边缘特征
+            // 3d-2d的关联检测
+            // 当与obj2D存在关联时：
+                // 重复指向一个实例：根据IoU和得分决定
+                // 校核类别和置信度，IoU重合但是类别不同不进行计数
+                // 校核框的范围，在图像边缘处不进行计数
+                // 如果该目标框已经和3D实例关联：
+                    // 3d-2d关联检测
+                    // 将该观测加入3D观测中来
+                // 如果该目标框未和3D实例关联，但是已经达到阈值（观测次数大于5，可观测比达到5成）：
+                    // 认为可生成3D实例（flag=1）
+            // 当与obj2D不存在关联，且IoU没有覆盖时：
+                // 新建obj2D实例
+        // 对于在视野中却没有被观测到的3D实例：
+            // 首先进行投影，
+            // 比较投影区域边缘纹理和存储的纹理，确定是否存在漏检
+        // 观测剩余没被关联的obj2d:
+            // 观测次数小于5的保留，计数器加1
+            // 观测次数大于5，可观测比达到5成，认为可以生成3D实例（flag=1）
+            // 观测次数大于30，可观测比未达到5成，删除目标候选
+        // flag=1时，单帧生成3D实例
+        // -----------------------------------------------------
+        // TODO: Case2: 完成下述流程
+
+        // -----------------------------------------------------
+        // TODO：开始实现：
+        // 清空标记位
+        for ( auto &obj2d:object2DVector ){
+            obj2d->candidateID = -1;
+        }
+        // 设置阈值
+        const float TH_IOU = 0.7;
+        // 两个for进行数据关联，关联方式先采用IoU，后续改为边缘特征
+        for (size_t i = 0; i < obsAnchors.size(); ++i){
+            Anchor anchor = obsAnchors[i];
+            for (size_t j = 0; j < object2DVector.size(); ++j){
+                auto obj2d = object2DVector[j];
+
+                // 如果该目标框已经和3D实例关联：
+                if (obj2d->correspondingObj3D != -1)
+                {
+                    auto obj3d = object3DVector[obj2d->correspondingObj3D];
+                    //TODO: 3d-2d数据关联
+                    bool success = false;
+                    // TrackingObject3D(obj3d, anchor);
+                    if (success == true){
+                        // 更新当前目标框
+                        obj3d->object2D->UpdateAnchor(anchor);
+                        // 加入当前帧
+                        // obj3d->object2D->objInFrames.emplace_back(mCurrentFrame.mTimeStamp);
+                        continue;
+                    }
+
+                }
+
+                // TODO: 使用追踪方法还是统计特征,并判断该特征是追踪得到还是观测得到
+                // TrackingAnchor(obj2d, mCurrentFrame.color_img_);
+
+                // 计算IoU值大小
+                float score = obj2d->ComputeIoU(anchor);
+
+                // 重叠度很高，认为形成关联, 当与obj2D存在关联时：
+                if (score > TH_IOU)
+                {
+                    // 校核类别和置信度，IoU重合但是类别不同时不再进行计数
+                    if (anchor.class_id == obj2d->anchor.class_id)
+                    {
+                        // 多个观测指向同一个obj2D实例
+                        if (obj2d->candidateID != -1){
+                            if (!obj2d->UpdateAnchor(anchor))
+                                continue;
+                        }
+                        // 如果该帧同样是观测(而不是预测)，对位置和得分进行更新
+                        if (obj2d->anchor.trackingFlag == 0){
+                            obj2d->UpdateAnchor(anchor);
+                        }else{
+                            // TODO：得分下降，下降多少还没想好
+                        }
+
+                        // 校核框的范围，在图像边缘处不进行计数
+                        if (anchor.isInImageBoundary(mCurrentFrame.rgb_)){
+                            // 更新正确观测
+                            obj2d->AddNewObservation(i, mCurrentFrame);
+                        }
+                    }else{
+                        // 更新错误观测
+                        obj2d->AddFuzzyObservation();
+                    }
+                    if (obj2d->correspondingObj3D == -1 && obj2d->count >5 && obj2d->count * 1.0 / obj2d->visibility  > 5)
+                    {
+                        // 形成新的3D实例
+                        auto obj3d = std::make_shared<Object3DInstance>();
+                        obj3d->class_id = obj2d->anchor.class_id;
+                        obj3d->id = object3DVector.size();
+
+                        obj3d->object2D = obj2d;
+                        // TODO: 生成对偶二次曲面
+                        // obj3d->BuildEllipsoid();
+                        // TODO: 存储关键点和描述子信息
+                        // obj3d->BuildKeyPoints();
+                        object3DVector.emplace_back(std::move(obj3d));
+                    }
+                }
+
+            }
+        }
+    }
+    // CJH data association end ----------------------------
 
     // ***************************************
     // STEP 2. associate objects with points *
