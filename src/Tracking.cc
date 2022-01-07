@@ -442,75 +442,6 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
         std::sort(obsAnchors.begin(), obsAnchors.end(), [](Anchor a, Anchor b) -> bool { return a.score > b.score; });
         mCurrentFrame.obsAnchors = obsAnchors;
 
-        // // CJH data association
-        // if (object2DVector.empty() && !obsAnchors.empty())
-        // {
-        //     for (size_t i=0; i<obsAnchors.size(); ++i){
-        //         auto obj = std::make_shared<Object2DInstance>();
-        //         // auto obj = new Object2DInstance;
-        //         obj->id = obsAnchors.size()-1;
-        //         obj->anchor = obsAnchors[i];
-        //         obj->count++;
-        //         obj->visibility++;
-        //         obj->objInFrames.emplace_back(mCurrentFrame.mTimeStamp);
-        //         // TODO:特征提取、关联平面、提取平均深度、提取框内的特征点
-        //         object2DVector.emplace_back(std::move(obj));
-        //     }
-        // }else{
-        //     // TODO: 完成下述流程
-        //     // 两个for进行数据关联，关联方式先采用IoU，后续改为边缘特征
-        //         // 当与obj2D存在关联时：
-        //             // 校核类别和置信度，IoU重合但是类别不同不进行计数
-        //             // 校核框的范围，在图像边缘处不进行计数
-
-        //             // 如果该目标框已经和3D实例关联：
-        //                 // 3d-2d关联检测
-        //                 // 将该观测加入3D观测中来
-        //             // 如果该目标框未和3D实例关联，但是已经达到阈值（观测次数大于5，可观测比达到5成）：
-        //                 // 认为可生成3D实例（flag=1）
-        //         // 当与obj2D不存在关联，且IoU没有覆盖时：
-        //             // 新建obj2D实例
-
-        //     // 对于在视野中却没有被观测到的3D实例：
-        //         // 首先进行投影，
-        //         // 比较投影区域边缘纹理和存储的纹理，确定是否存在漏检
-
-        //     // 观测剩余没被关联的obj2d:
-        //         // 观测次数小于5的保留，计数器加1
-        //         // 观测次数大于5，可观测比达到5成，认为可以生成3D实例（flag=1）
-        //         // 观测次数大于30，可观测比未达到5成，删除目标候选
-
-        //     // flag=1时，单帧生成3D实例
-
-        //     // 开始实现：
-        //     const float TH_IOU = 0.7;
-        //     for (size_t i = 0; i < obsAnchors.size(); ++i){
-        //         Anchor anchor = obsAnchors[i];
-
-        //         for (size_t j = 0; j < object2DVector.size(); ++j){
-        //             auto obj2d = object2DVector[j];
-        //             // 使用追踪方法还是位姿投影法？
-        //             // UpdateAnchor(obj2d, );
-        //             // 计算IoU值大小
-        //             float score = obj2d->ComputeIoU(anchor);
-        //             // 重叠度很高，认为形成关联
-        //             if (score > TH_IOU)
-        //             {
-        //                 // 类别一致认为
-        //                 if (anchor.class_id == obj2d->anchor.class_id){
-        //                     if(isInImageBoundary()){
-        //                         obj2d->count++;
-        //                         obj2d->objInFrames.emplace_back(mCurrentFrame.mTimeStamp);
-        //                     }
-        //                 }
-        //                 obj2d->visibility++;
-        //             }else{
-        //                 anchor.eraseFlag = 1;
-        //             }
-        //         }
-        //     }
-        // }
-        // // CJH data association end
     }
     else
     {
@@ -1804,133 +1735,6 @@ bool Tracking::TrackWithMotionModel()
     if (nmatches < 20)
         return false;
 
-    // CJH data association ----------------------------------
-    std::vector<Anchor> &obsAnchors = mCurrentFrame.obsAnchors;
-    if (object2DVector.empty() && !obsAnchors.empty())
-    {
-        for (size_t i=0; i<obsAnchors.size(); ++i){
-            auto obj = std::make_shared<Object2DInstance>();
-            // auto obj = new Object2DInstance;
-            // TODO：写完后面的再去补一下前面缺的初始化项目
-            obj->id = obsAnchors.size()-1;
-            obj->anchor = obsAnchors[i];
-            obj->count++;
-            obj->visibility++;
-            auto ptrCurrentFrame = static_cast<std::shared_ptr<Frame>>(&mCurrentFrame);
-            obj->objInFrames.push_back(ptrCurrentFrame);
-            // TODO:特征提取、关联平面、提取平均深度、提取框内的特征点
-            object2DVector.emplace_back(std::move(obj));
-        }
-    }else{
-        // TODO: Case1: 完成下述流程
-        // 两个for进行数据关联，关联方式先采用IoU，后续改为边缘特征
-            // 3d-2d的关联检测
-            // 当与obj2D存在关联时：
-                // 重复指向一个实例：根据IoU和得分决定
-                // 校核类别和置信度，IoU重合但是类别不同不进行计数
-                // 校核框的范围，在图像边缘处不进行计数
-                // 如果该目标框已经和3D实例关联：
-                    // 3d-2d关联检测
-                    // 将该观测加入3D观测中来
-                // 如果该目标框未和3D实例关联，但是已经达到阈值（观测次数大于5，可观测比达到5成）：
-                    // 认为可生成3D实例（flag=1）
-            // 当与obj2D不存在关联，且IoU没有覆盖时：
-                // 新建obj2D实例
-        // 对于在视野中却没有被观测到的3D实例：
-            // 首先进行投影，
-            // 比较投影区域边缘纹理和存储的纹理，确定是否存在漏检
-        // 观测剩余没被关联的obj2d:
-            // 观测次数小于5的保留，计数器加1
-            // 观测次数大于5，可观测比达到5成，认为可以生成3D实例（flag=1）
-            // 观测次数大于30，可观测比未达到5成，删除目标候选
-        // flag=1时，单帧生成3D实例
-        // -----------------------------------------------------
-        // TODO: Case2: 完成下述流程
-
-        // -----------------------------------------------------
-        // TODO：开始实现：
-        // 清空标记位
-        for ( auto &obj2d:object2DVector ){
-            obj2d->candidateID = -1;
-        }
-        // 设置阈值
-        const float TH_IOU = 0.7;
-        // 两个for进行数据关联，关联方式先采用IoU，后续改为边缘特征
-        for (size_t i = 0; i < obsAnchors.size(); ++i){
-            Anchor anchor = obsAnchors[i];
-            for (size_t j = 0; j < object2DVector.size(); ++j){
-                auto obj2d = object2DVector[j];
-
-                // 如果该目标框已经和3D实例关联：
-                if (obj2d->correspondingObj3D != -1)
-                {
-                    auto obj3d = object3DVector[obj2d->correspondingObj3D];
-                    //TODO: 3d-2d数据关联
-                    bool success = false;
-                    // TrackingObject3D(obj3d, anchor);
-                    if (success == true){
-                        // 更新当前目标框
-                        obj3d->object2D->UpdateAnchor(anchor);
-                        // 加入当前帧
-                        // obj3d->object2D->objInFrames.emplace_back(mCurrentFrame.mTimeStamp);
-                        continue;
-                    }
-
-                }
-
-                // TODO: 使用追踪方法还是统计特征,并判断该特征是追踪得到还是观测得到
-                // TrackingAnchor(obj2d, mCurrentFrame.color_img_);
-
-                // 计算IoU值大小
-                float score = obj2d->ComputeIoU(anchor);
-
-                // 重叠度很高，认为形成关联, 当与obj2D存在关联时：
-                if (score > TH_IOU)
-                {
-                    // 校核类别和置信度，IoU重合但是类别不同时不再进行计数
-                    if (anchor.class_id == obj2d->anchor.class_id)
-                    {
-                        // 多个观测指向同一个obj2D实例
-                        if (obj2d->candidateID != -1){
-                            if (!obj2d->UpdateAnchor(anchor))
-                                continue;
-                        }
-                        // 如果该帧同样是观测(而不是预测)，对位置和得分进行更新
-                        if (obj2d->anchor.trackingFlag == 0){
-                            obj2d->UpdateAnchor(anchor);
-                        }else{
-                            // TODO：得分下降，下降多少还没想好
-                        }
-
-                        // 校核框的范围，在图像边缘处不进行计数
-                        if (anchor.isInImageBoundary(mCurrentFrame.rgb_)){
-                            // 更新正确观测
-                            obj2d->AddNewObservation(i, mCurrentFrame);
-                        }
-                    }else{
-                        // 更新错误观测
-                        obj2d->AddFuzzyObservation();
-                    }
-                    if (obj2d->correspondingObj3D == -1 && obj2d->count >5 && obj2d->count * 1.0 / obj2d->visibility  > 5)
-                    {
-                        // 形成新的3D实例
-                        auto obj3d = std::make_shared<Object3DInstance>();
-                        obj3d->class_id = obj2d->anchor.class_id;
-                        obj3d->id = object3DVector.size();
-
-                        obj3d->object2D = obj2d;
-                        // TODO: 生成对偶二次曲面
-                        // obj3d->BuildEllipsoid();
-                        // TODO: 存储关键点和描述子信息
-                        // obj3d->BuildKeyPoints();
-                        object3DVector.emplace_back(std::move(obj3d));
-                    }
-                }
-
-            }
-        }
-    }
-    // CJH data association end ----------------------------
 
     // ***************************************
     // STEP 2. associate objects with points *
@@ -2391,11 +2195,192 @@ bool Tracking::TrackWithMotionModel()
     // add plane end
 
     // if (nDisgardPlane > 0)
-        if (mbOnlyTracking)
+    if (mbOnlyTracking)
+    {
+        mbVO = nmatchesMap < 10;
+        return nmatches > 20;
+    }
+
+    // CJH data association ----------------------------------
+    std::vector<Anchor> &obsAnchors = mCurrentFrame.obsAnchors;
+    // TODO:核查下初始化条件
+    if (object2DMap.empty() && !obsAnchors.empty())
+    {
+        for (size_t i = 0; i < obsAnchors.size(); ++i)
         {
-            mbVO = nmatchesMap < 10;
-            return nmatches > 20;
+            // 去除过程面积过小的锚框
+            if (!obsAnchors[i].RemoveSmallSize()) continue;
+            std::shared_ptr<Object2DInstance> newObject2D = std::make_shared<Object2DInstance>();
+            newObject2D->id = object2DMap.size() - 1;
+            newObject2D->anchor = static_cast<std::shared_ptr<Anchor>>(&obsAnchors[i]);
+            newObject2D->count++;
+            newObject2D->visibility++;
+            auto ptrCurrentFrame = static_cast<std::shared_ptr<Frame>>(&mCurrentFrame);
+            newObject2D->objInFrames.emplace_back(ptrCurrentFrame);
+            newObject2D->obsInFrames.emplace_back(newObject2D->anchor);
+            newObject2D->AddFeatures(mCurrentFrame);
+            object2DMap.emplace_back(std::move(newObject2D));
         }
+    }
+    else
+    {
+        // 清空标记位
+        for (auto &obj2d : object2DMap)
+        {
+            obj2d->candidateID = -1;
+        }
+
+        // 两个for进行数据关联
+        for (size_t i = 0; i < obsAnchors.size(); ++i)
+        {
+            Anchor anchor = obsAnchors[i];
+            // 去除过程面积过小的锚框
+            if (!anchor.RemoveSmallSize()) continue;
+            // 清空标志位
+            int association_flag = 0;
+
+            // TODO: 可选: 对观测进行卡尔曼滤波，执行位置在关联之后，更新之前
+            // TODO: 没有考虑多个实例投影指向同一个观测
+            // TODO: 参考Apollo代码，使用匈牙利追踪算法
+
+            // 3D-2D
+            for (size_t j = 0; j < object3DMap.size(); ++j)
+            {
+                bool success = false;
+                std::shared_ptr<Object3DInstance> obj3d = object3DMap[j];
+                // 清空标记位
+                obj3d->object2D->candidateID = -1;
+
+                // 将3d实例投影到2d空间
+                obj3d->TrackingObject3D(mCurrentFrame);
+                // 不在视野范围内进行下一轮
+                if (!obj3d->object2D->anchor->isInImageBoundary(mCurrentFrame.rgb_))
+                    continue;
+
+                std::shared_ptr<Object2DInstance> obj2d = obj3d->object2D;
+                // 3d-2d 数据关联(空间上特征点的统计)
+                if (obj2d->candidateID != -1)
+                {
+                    // TODO: 完成3d-2d的数据关联
+                    success = object3DMap[j]->Association3Dto2D();
+                }
+
+                // 2d-2d 数据关联(IoU、纹理统计、类别)
+                if (success)
+                {
+                    success = obj2d->Association2Dto2D(i, mCurrentFrame, anchor);
+                }
+
+                // 判断最终是否成功关联：
+                if (success)
+                {
+                    // TODO: 更新3d实例模型(图优化)
+                    association_flag = 1;
+                }
+            }
+
+            // 2D-2D
+            if (association_flag == 0)
+            {
+                // 与3D实例无关联后，判断与2d实例缓存是否关联
+                for (size_t k = 0; k < object3DMap.size(); ++k)
+                {
+                    std::shared_ptr<Object2DInstance> obj2d = object2DMap[k];
+                    // 2d-2d 数据关联(IoU、纹理统计、类别)
+                    association_flag = obj2d->Association2Dto2D(i, mCurrentFrame, anchor);
+                }
+            }
+
+            // 新建2D实例加入vector中来
+            if (association_flag == 0)
+            {
+                std::shared_ptr<Object2DInstance> newObject2D = std::make_shared<Object2DInstance>();
+                newObject2D->id = object2DMap.size() - 1;
+                newObject2D->anchor = static_cast<std::shared_ptr<Anchor>>(&anchor);
+                newObject2D->count++;
+                newObject2D->visibility++;
+                auto ptrCurrentFrame = static_cast<std::shared_ptr<Frame>>(&mCurrentFrame);
+                newObject2D->objInFrames.emplace_back(ptrCurrentFrame);
+                newObject2D->obsInFrames.emplace_back(newObject2D->anchor);
+                newObject2D->AddFeatures(mCurrentFrame);
+                object2DMap.emplace_back(std::move(newObject2D));
+            }
+        }
+
+        // 检查在范围内却没有被关联的3D实例投影
+        for (size_t m = 0; m < object3DMap.size(); ++m)
+        {
+            std::shared_ptr<Object2DInstance> obj2d = object3DMap[m]->object2D;
+            if (obj2d->candidateID != -1)
+                continue;
+            obj2d->visibility++;
+            obj2d->lastFrame = -1;
+        }
+
+        // 遍历所有的2d实例缓存,新建已到达标准的3d实例
+        for (size_t n = 0; n < object2DMap.size(); ++n)
+        {
+            std::shared_ptr<Object2DInstance> obj2d = object2DMap[n];
+            if (obj2d->count < 5)
+                continue;
+            float ratio = obj2d->count * 1.0 / obj2d->visibility;
+
+            if (ratio <= 0.5)
+            {
+                // 增加擦除标记
+                obj2d->eraseFLAG = 1;
+            }
+            else
+            {
+                // 新建3d实例
+                auto obj3d = std::make_shared<Object3DInstance>();
+                // 生成对偶二次曲面
+                obj3d->BuildEllipsoid(mCurrentFrame);
+                // 如果生成失败，continue
+                if (!obj3d->ellipsoid->getEllipsoid_flag)
+                    continue;
+                obj3d->id = object3DMap.size();
+                obj3d->object2D = std::move(obj2d);
+                // 存储点云信息
+                obj3d->BuildPointCloud();
+                // 加入地图中存储
+                object3DMap.emplace_back(std::move(obj3d));
+                // 实例化以后也要从obj2ds缓存中清除
+                obj2d->eraseFLAG = 1;
+            }
+        }
+
+        // 清除错误的obj2d
+        for (std::vector<std::shared_ptr<Object2DInstance>>::iterator iter = object2DMap.begin(); iter != object2DMap.end(); iter++)
+        {
+            if ((*iter)->eraseFLAG == 1)
+            {
+                object2DMap.erase(iter);
+                iter--;
+            }
+        }
+
+        // 清除错误的obj3d
+        for (std::vector<std::shared_ptr<Object3DInstance>>::iterator iter = object3DMap.begin(); iter != object3DMap.end(); iter++)
+        {
+            if (((*iter)->object2D->count * 1.0) / ((*iter)->object2D->visibility) <= 0.5)
+            {
+                object3DMap.erase(iter);
+                iter--;
+            }
+        }
+
+        // 3d-3d的实例判断重复
+        for (size_t i = 0; i < object3DMap.size(); ++i){
+            auto obj3d1 = object3DMap[i];
+            for (size_t j = 0; j < object3DMap.size(); ++j){
+                if (i == j) continue;
+                auto obj3d2 = object3DMap[j];
+
+            }
+        }
+    }
+    // CJH data association end ----------------------------
 
     return nmatchesMap >= 10;
 }

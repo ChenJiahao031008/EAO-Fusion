@@ -162,8 +162,8 @@ public:
     bool have_detected;
 
     // add obj2d
-    std::vector<std::shared_ptr<Object2DInstance>> object2DVector;
-    std::vector<std::shared_ptr<Object3DInstance>> object3DVector;
+    std::vector<std::shared_ptr<Object2DInstance>> object2DMap;
+    std::vector<std::shared_ptr<Object3DInstance>> object3DMap;
 
     // Groundtruth.
     static bool mbReadedGroundtruth;

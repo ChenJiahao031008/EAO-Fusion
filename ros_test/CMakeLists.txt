@@ -170,6 +170,8 @@ add_library(${PROJECT_NAME}_lib SHARED
     ../src/DepthFilter/Kernel.cc
     # object
     ../src/ObjectInstance.cc
+    # tools
+    ../src/Tools.cc
 )
 
 
