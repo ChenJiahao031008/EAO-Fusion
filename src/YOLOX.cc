@@ -37,6 +37,7 @@ YOLOX::YOLOX(const std::string &engine_file_path)
         output_size *= out_dims.d[j];
     }
     prob = new float[output_size];
+    mbFinishRequested = false;
 }
 
 YOLOX::~YOLOX()
