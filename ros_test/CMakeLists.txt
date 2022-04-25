@@ -126,6 +126,7 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../src/g2oAddition
     ${PROJECT_SOURCE_DIR}/../include/PEAC
     ${PROJECT_SOURCE_DIR}/../src/DepthFilter
+    ${PROJECT_SOURCE_DIR}/../src/bytetrack
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../lib)
@@ -166,8 +167,16 @@ add_library(${PROJECT_NAME}_lib SHARED
     # depth filter
     ../src/DepthFilter/JBF.cc
     ../src/DepthFilter/Kernel.cc
+    # byte_track
+    ../src/bytetrack/bytetrack_impl.cc
+    ../src/bytetrack/BYTETracker.cc
+    ../src/bytetrack/kalmanFilter.cc
+    ../src/bytetrack/lapjv.cc
+    ../src/bytetrack/STrack.cc
+    ../src/bytetrack/utils.cc
 )
 
+# add_subdirectory(../src/bytetrack ../src/bytetrack/build.out)
 
 target_link_libraries(${PROJECT_NAME}_lib
     ${catkin_LIBRARIES}
@@ -181,6 +190,7 @@ target_link_libraries(${PROJECT_NAME}_lib
     lapack blas
     nvinfer
     cudart
+    # bytetrack
     # dw
 )
 
