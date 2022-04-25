@@ -4,7 +4,7 @@ namespace ORB_SLAM2
 {
 namespace BYTE_TRACK
 {
-STrack::STrack(std::vector<float> tlwh_, float score)
+STrack::STrack(std::vector<float> tlwh_, float score, int lab)
 {
 	_tlwh.resize(4);
 	_tlwh.assign(tlwh_.begin(), tlwh_.end());
@@ -22,6 +22,7 @@ STrack::STrack(std::vector<float> tlwh_, float score)
 	tracklet_len = 0;
 	this->score = score;
 	start_frame = 0;
+	label = lab;
 }
 
 STrack::~STrack()

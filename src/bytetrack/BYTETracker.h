@@ -8,11 +8,21 @@ namespace ORB_SLAM2
 namespace BYTE_TRACK
 {
 
+struct GridAndStride
+{
+    int grid0;
+    int grid1;
+    int stride;
+};
+
+
 struct Object
 {
     cv::Rect_<float> rect;
     int label;
     float prob;
+	int idx = -1;
+	int nFrame = -1;
 };
 
 class BYTETracker

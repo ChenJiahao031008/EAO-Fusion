@@ -133,7 +133,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../lib)
 
 add_library(${PROJECT_NAME}_lib SHARED
     # yolox
-    ../src/YOLOX.cc
+    # ../src/YOLOX.cc
     # ros
     src/message_flow.cc
     src/imu_subscriber.cc

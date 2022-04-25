@@ -36,9 +36,8 @@
 #include "ORBVocabulary.h"
 #include "Viewer.h"
 
-// yolo online
-// #include "Semantic.h"
-#include "YOLOX.h"
+// #include "YOLOX.h"
+#include "bytetrack_impl.h"
 
 namespace ORB_SLAM2
 {
@@ -49,7 +48,8 @@ class Map;
 class Tracking;
 class LocalMapping;
 class LoopClosing;
-class YOLOX;
+// class YOLOX;
+class BYTETrackerImpl;
 
 class System
 {
@@ -67,21 +67,12 @@ public:
     System( const string &strVocFile, const string &strSettingsFile, const string &flag,
             const eSensor sensor, const bool bUseViewer = true, const bool SemanticOnline = false);
 
-    // Proccess the given stereo frame. Images must be synchronized and rectified.
-    // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
-    // Returns the camera pose (empty if tracking fails).
-    cv::Mat TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timestamp);
 
     // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
     // Input image: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
     // Input depthmap: Float (CV_32F).
     // Returns the camera pose (empty if tracking fails).
     cv::Mat TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp);
-
-    // Proccess the given monocular frame
-    // Input images: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
-    // Returns the camera pose (empty if tracking fails).
-    cv::Mat TrackMonocular(const cv::Mat &im, const double &timestamp);
 
     // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();
@@ -112,41 +103,18 @@ public:
     // See format details at: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
     void SaveTrajectoryKITTI(const string &filename);
 
-    // TODO: Save/Load functions
-    // SaveMap(const string &filename);
-    // LoadMap(const string &filename);
-
 private:
 
     // Input sensor
     eSensor mSensor;
 
-    // ORB vocabulary used for place recognition and feature matching.
     ORBVocabulary* mpVocabulary;
-
-    // KeyFrame database for place recognition (relocalization and loop detection).
     KeyFrameDatabase* mpKeyFrameDatabase;
-
-    // Map structure that stores the pointers to all KeyFrames and MapPoints.
     Map* mpMap;
-
-    // Tracker. It receives a frame and computes the associated camera pose.
-    // It also decides when to insert a new keyframe, create some new MapPoints and
-    // performs relocalization if tracking fails.
     Tracking* mpTracker;
-
-    // Local Mapper. It manages the local map and performs local bundle adjustment.
     LocalMapping* mpLocalMapper;
-
-    // Loop Closer. It searches loops with every new keyframe. If there is a loop it performs
-    // a pose graph optimization and full bundle adjustment (in a new thread) afterwards.
     LoopClosing* mpLoopCloser;
-
-    YOLOX* mpSemanticer;  // yolo online.
-
-    // The viewer draws the map and the current camera pose. It uses Pangolin.
     Viewer* mpViewer;
-
     FrameDrawer* mpFrameDrawer;
     MapDrawer* mpMapDrawer;
 
@@ -155,8 +123,11 @@ private:
     std::thread* mptLocalMapping;
     std::thread* mptLoopClosing;
     std::thread* mptViewer;
-    std::thread* mptSemiDense;
-    std::thread* mptSemanticer;  // yolo online.
+
+    // YOLOX *mpSemanticer;         // yolo online.
+    // std::thread* mptSemanticer;  // yolo online.
+    BYTETrackerImpl *mpByteTrack;
+    std::thread *mptByteTrack;
 
     // Reset flag
     std::mutex mMutexReset;

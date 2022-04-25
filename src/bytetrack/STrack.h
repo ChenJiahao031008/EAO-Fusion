@@ -18,7 +18,7 @@ enum TrackState { New = 0, Tracked, Lost, Removed };
 class STrack
 {
 public:
-	STrack(std::vector<float> tlwh_, float score);
+	STrack(std::vector<float> tlwh_, float score, int lab);
 	~STrack();
 
 	std::vector<float> static tlbr_to_tlwh(std::vector<float> &tlbr);
@@ -40,6 +40,7 @@ public:
 	bool is_activated;
 	int track_id;
 	int state;
+	int label;
 
 	std::vector<float> _tlwh;
 	std::vector<float> tlwh;

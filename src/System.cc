@@ -26,7 +26,6 @@
 #include <pangolin/pangolin.h>
 #include <iomanip>
 
-// #include "include/Semantic.h"       // [EAO] online yolo.
 
 bool has_suffix(const std::string &str, const std::string &suffix) {
   std::size_t index = str.find(suffix, str.size() - suffix.size());
@@ -44,7 +43,7 @@ System::System(const string &strVocFile, const string &strSettingsFile,
                                         mbReset(false),
                                         mbActivateLocalizationMode(false),
                                         mbDeactivateLocalizationMode(false),
-                                        bSemanticOnline(SemanticOnline)  // [EAO] online/offline yolo detection.
+                                        bSemanticOnline(SemanticOnline)
 {
     // Output welcome message
     cout << endl <<
@@ -110,8 +109,11 @@ System::System(const string &strVocFile, const string &strSettingsFile,
 
     // _____________________________yolox_______________________________
     std::string engineFile = WORK_SPACE_PATH + "/ros_test/config/model_trt.engine";
-    mpSemanticer = new YOLOX(engineFile);
-    mptSemanticer = new thread(&ORB_SLAM2::YOLOX::Run, mpSemanticer);
+    // mpSemanticer = new YOLOX(engineFile);
+    // mptSemanticer = new thread(&ORB_SLAM2::YOLOX::Run, mpSemanticer);
+
+    mpByteTrack = new BYTETrackerImpl(engineFile);
+    mptByteTrack = new thread(&ORB_SLAM2::BYTETrackerImpl::Run, mpByteTrack);
     // _____________________________yolox_______________________________
 
     //Initialize the Viewer thread and launch
@@ -131,11 +133,11 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     // [EAO] Set pointers between threads.
     if(bSemanticOnline)
     {
-        mpTracker->SetSemanticer(mpSemanticer);
-    }
-    if(bSemanticOnline)
-    {
-        mpSemanticer->SetTracker(mpTracker);
+        // mpTracker->SetSemanticer(mpSemanticer);
+        // mpSemanticer->SetTracker(mpTracker);
+
+        mpTracker->SetSemanticer(mpByteTrack);
+        mpByteTrack->SetTracker(mpTracker);
     }
 }
 
@@ -184,52 +186,6 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     return mpTracker->GrabImageRGBD(im, depthmap, timestamp, bSemanticOnline);
 }
 
-cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
-{
-    if(mSensor!=MONOCULAR)
-    {
-        cerr << "ERROR: you called TrackMonocular but input sensor was not set to Monocular." << endl;
-        exit(-1);
-    }
-
-    // Check mode change
-    {
-        unique_lock<mutex> lock(mMutexMode);
-        if(mbActivateLocalizationMode)
-        {
-            mpLocalMapper->RequestStop();
-
-            // Wait until Local Mapping has effectively stopped
-            while(!mpLocalMapper->isStopped())
-            {
-                usleep(1000);
-            }
-
-            mpTracker->InformOnlyTracking(true);
-            mbActivateLocalizationMode = false;
-        }
-        if(mbDeactivateLocalizationMode)
-        {
-            mpTracker->InformOnlyTracking(false);
-            mpLocalMapper->Release();
-            mbDeactivateLocalizationMode = false;
-        }
-    }
-
-    // Check reset
-    {
-    unique_lock<mutex> lock(mMutexReset);
-    if(mbReset)
-    {
-        mpTracker->Reset();
-        mbReset = false;
-    }
-    }
-
-
-    return mpTracker->GrabImageMonocular(im, timestamp, bSemanticOnline);
-}
-
 void System::ActivateLocalizationMode()
 {
     unique_lock<mutex> lock(mMutexMode);
@@ -252,13 +208,15 @@ void System::Shutdown()
 {
     mpLocalMapper->RequestFinish();
     mpLoopCloser->RequestFinish();
-    mpSemanticer->RequestFinish();
+    // mpSemanticer->RequestFinish();
+    mpByteTrack->RequestFinish();
 
     // Wait until all thread have effectively stopped
     while (!mpLocalMapper->isFinished() ||
            !mpLoopCloser->isFinished() ||
-           !mpSemanticer->isFinished() ||
-            mpLoopCloser->isRunningGBA())
+        //    !mpSemanticer->isFinished() ||
+           mpLoopCloser->isRunningGBA() ||
+           !mpByteTrack->isFinished())
     {
         usleep(5000);
     }

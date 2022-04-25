@@ -46,7 +46,7 @@
 
 // YOLOX
 #include "Global.h"
-#include "YOLOX.h"
+// #include "YOLOX.h"
 
 namespace ORB_SLAM2
 {
@@ -57,8 +57,8 @@ class Map;
 class LocalMapping;
 class LoopClosing;
 class System;
-class YOLOX;
-
+// class YOLOX;
+class BYTETrackerImpl;
 
 class Tracking
 {
@@ -76,7 +76,10 @@ public:
     void SetLocalMapper(LocalMapping* pLocalMapper);
     void SetLoopClosing(LoopClosing* pLoopClosing);
     void SetViewer(Viewer* pViewer);
-    void SetSemanticer(YOLOX* detector); //yolox
+
+
+    // void SetSemanticer(YOLOX* detector); //yolox
+    void SetSemanticer(BYTETrackerImpl *detector);
 
     // Load new settings
     // The focal lenght should be similar or scale prediction will fail when projecting points
@@ -164,7 +167,6 @@ public:
     int mnObjectIniFrameID;
     int mflag2 = 0;
 
-    std::shared_ptr<YOLOX> yolox_ptr_; // yolox ptr
     // 0: no constraint; 1: use ground truth; 2: use imu
     int miConstraintType = 0;
     bool mbSemanticOnline;
@@ -208,7 +210,8 @@ protected:
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
     // NOTE
-    YOLOX* Semanticer;
+    // YOLOX* Semanticer;
+    BYTETrackerImpl* ByteTracker;
 
     //ORB
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;

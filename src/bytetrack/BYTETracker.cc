@@ -55,8 +55,9 @@ std::vector<STrack> BYTETracker::update(const std::vector<Object>& objects)
 			tlbr_[3] = objects[i].rect.y + objects[i].rect.height;
 
 			float score = objects[i].prob;
+			int label = objects[i].label;
 
-			STrack strack(STrack::tlbr_to_tlwh(tlbr_), score);
+			STrack strack(STrack::tlbr_to_tlwh(tlbr_), score, label);
 			if (score >= track_thresh)
 			{
 				detections.push_back(strack);

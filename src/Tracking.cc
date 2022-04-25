@@ -230,14 +230,6 @@ Tracking::Tracking( System *pSys, ORBVocabulary *pVoc, FrameDrawer *pFrameDrawer
             infile.close();
         }
     }
-    // read groundtruth --------------------------------------------------
-    // 实时检测模块
-    if (mbSemanticOnline){
-        std::cout << "[INFO] WORK SPACE PATH IS: " << WORK_SPACE_PATH << std::endl;
-        std::string engineFile = WORK_SPACE_PATH + "/ros_test/config/model_trt.engine";
-        // YOLOX detector(engineFile);
-        yolox_ptr_ = std::make_shared<YOLOX>(engineFile);
-    }
 }
 
 void Tracking::SetLocalMapper(LocalMapping *pLocalMapper)
@@ -256,48 +248,14 @@ void Tracking::SetViewer(Viewer *pViewer)
 }
 
 
-void Tracking::SetSemanticer(YOLOX *detector)
+// void Tracking::SetSemanticer(YOLOX *detector)
+// {
+//     Semanticer = detector;
+// }
+
+void Tracking::SetSemanticer(BYTETrackerImpl *detector)
 {
-    Semanticer = detector;
-}
-
-cv::Mat Tracking::GrabImageStereo(const cv::Mat &imRectLeft, const cv::Mat &imRectRight, const double &timestamp)
-{
-    mImGray = imRectLeft;
-    cv::Mat imGrayRight = imRectRight;
-
-    if (mImGray.channels() == 3)
-    {
-        if (mbRGB)
-        {
-            cvtColor(mImGray, mImGray, CV_RGB2GRAY);
-            cvtColor(imGrayRight, imGrayRight, CV_RGB2GRAY);
-        }
-        else
-        {
-            cvtColor(mImGray, mImGray, CV_BGR2GRAY);
-            cvtColor(imGrayRight, imGrayRight, CV_BGR2GRAY);
-        }
-    }
-    else if (mImGray.channels() == 4)
-    {
-        if (mbRGB)
-        {
-            cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
-            cvtColor(imGrayRight, imGrayRight, CV_RGBA2GRAY);
-        }
-        else
-        {
-            cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
-            cvtColor(imGrayRight, imGrayRight, CV_BGRA2GRAY);
-        }
-    }
-
-    mCurrentFrame = Frame(mImGray, imGrayRight, timestamp, mpORBextractorLeft, mpORBextractorRight, mpORBVocabulary, mK, mDistCoef, mbf, mThDepth);
-
-    Track();
-
-    return mCurrentFrame.mTcw.clone();
+    ByteTracker = detector;
 }
 
 cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp, const bool bSemanticOnline)
@@ -315,7 +273,8 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     if (bSemanticOnline)
     {
         // unique_lock<mutex> lock(Semanticer->mMutexYOLOXQueue);
-        Semanticer->InsertImage(imRGB);
+        // Semanticer->InsertImage(imRGB);
+        ByteTracker->InsertImage(imRGB);
     }
 
     mImGray = imRGB;
@@ -403,14 +362,20 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     if (bSemanticOnline)
     {
         // TODO online detect.
-        std::vector<Object> currentObjs;
+        std::vector<BYTE_TRACK::Object> currentObjs;
+        std::vector<BYTE_TRACK::STrack> currentStracks;
         auto start = std::chrono::system_clock::now();
         int StopCount = 0;
         while (1){
-            if (Semanticer->CheckResult()){
-                Semanticer->GetResult(currentObjs);
+            // if (Semanticer->CheckResult()){
+            //     Semanticer->GetResult(currentObjs);
+            //     break;
+            // }
+            if (ByteTracker->CheckResult()){
+                ByteTracker->GetResult(currentStracks);
                 break;
             }
+            // ByteTracker
             if (StopCount >= 5 && mState != NOT_INITIALIZED){
                 std::cout << "[WARRNING] DETECTER ERROR!" << std::endl;
                 break;
@@ -419,7 +384,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             StopCount++;
         }
 
-        if (currentObjs.size() == 0)
+        if (currentStracks.size() == 0)
         {
             std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
@@ -429,8 +394,9 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
 
         std::vector<BoxSE> boxes_online;
-        for (auto &objInfo : currentObjs)
+        for (auto &strack : currentStracks)
         {
+            auto objInfo = BYTETrackerImpl::STrack2Object(strack);
             if (objInfo.prob < 0.5)
                 continue;
             // 0: person; 24: handbag; 28: suitcase; 39: bottle; 56: chair;
@@ -622,320 +588,6 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     return mCurrentFrame.mTcw.clone();
 }
 
-cv::Mat Tracking::GrabImageMonocular(const cv::Mat &im,
-                                     const double &timestamp,
-                                     const bool bSemanticOnline)
-{
-    frame_id_tracking++;
-
-    cv::Mat rawImage = im.clone();
-
-    // TODO: 分线程更快速
-    if (bSemanticOnline)
-    {
-        Semanticer->InsertImage(im);
-    }
-
-    mImGray = im;
-
-    if (mImGray.channels() == 3)
-    {
-        if (mbRGB)
-            cvtColor(mImGray, mImGray, CV_RGB2GRAY);
-        else
-            cvtColor(mImGray, mImGray, CV_BGR2GRAY);
-    }
-    else if (mImGray.channels() == 4)
-    {
-        if (mbRGB)
-            cvtColor(mImGray, mImGray, CV_RGBA2GRAY);
-        else
-            cvtColor(mImGray, mImGray, CV_BGRA2GRAY);
-    }
-
-    // undistort image:
-    // TODO: 选择图像去畸变而不是点去畸变，对于大部分场景个人认为是不必要的
-    // 先转成灰度图去畸变再转回rgb，意义不明，只能理解为减少计算量
-    cv::Mat gray_imu;
-    cv::undistort(mImGray, gray_imu, mK, mDistCoef);
-
-    cv::Mat rgb_imu;
-    cv::undistort(im, rgb_imu, mK, mDistCoef);
-    if (rgb_imu.channels() == 1)
-    {
-        cvtColor(rgb_imu, rgb_imu, CV_GRAY2RGB);
-    }
-    else if (rgb_imu.channels() == 3)
-    {
-        if (!mbRGB)
-            cvtColor(rgb_imu, rgb_imu, CV_BGR2RGB);
-    }
-    else if (rgb_imu.channels() == 4)
-    {
-        if (mbRGB)
-            cvtColor(rgb_imu, rgb_imu, CV_RGBA2RGB);
-        else
-            cvtColor(rgb_imu, rgb_imu, CV_BGRA2RGB);
-    }
-
-    // STEP 1. Construct Frame.
-    if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
-        mCurrentFrame = Frame(rawImage,         // color image.
-                              mImGray,
-                              timestamp,
-                              mpIniORBextractor,
-                              mpORBVocabulary,
-                              mK,
-                              mDistCoef,
-                              mbf,
-                              mThDepth,
-                              gray_imu,
-                              rgb_imu);
-    else
-        mCurrentFrame = Frame(rawImage,         // color image.
-                              mImGray,
-                              timestamp,
-                              mpORBextractorLeft,
-                              mpORBVocabulary,
-                              mK,
-                              mDistCoef,
-                              mbf,
-                              mThDepth,
-                              gray_imu,
-                              rgb_imu);
-
-    // STEP object detection.+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-    vector<vector<int>> _mat;
-    mCurrentFrame.have_detected = false;
-    mCurrentFrame.finish_detected = false;
-    if (bSemanticOnline)
-    {
-        // TODO online detect.
-        std::vector<Object> currentObjs;
-        auto start = std::chrono::system_clock::now();
-
-        // yolox_ptr_->Detect(rawImage, currentObjs);
-        while (1)
-        {
-            if (Semanticer->CheckResult())
-            {
-                Semanticer->GetResult(currentObjs);
-                break;
-            }
-            usleep(5000);
-        }
-
-        if (currentObjs.size() == 0)
-        {
-            std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
-        }
-        // 耗时计算
-        // auto end = std::chrono::system_clock::now();
-        // std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
-
-        std::vector<BoxSE> boxes_online;
-        for (auto &objInfo : currentObjs)
-        {
-            if (objInfo.prob < 0.5)
-                continue;
-            // 0: person; 24: handbag; 28: suitcase; 39: bottle; 56: chair;
-            // 57: couch; 58:potted plant; 59: bed; 60: dining table; 62: tv;
-            // 63: laptop; 66: keyboard; 67: phone; 73: book;
-            if (objInfo.label != 0 && objInfo.label != 24 && objInfo.label != 28 && objInfo.label != 39 && objInfo.label != 56 && objInfo.label != 57 && objInfo.label != 58 && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 62 && objInfo.label != 63 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73)
-                continue;
-            BoxSE box;
-            box.m_class = objInfo.label;
-            box.m_score = objInfo.prob;
-            box.x = objInfo.rect.x;
-            box.y = objInfo.rect.y;
-            box.width = objInfo.rect.width;
-            box.height = objInfo.rect.height;
-            // box.m_class_name = "";
-            boxes_online.push_back(box);
-        }
-        std::sort(boxes_online.begin(), boxes_online.end(), [](BoxSE a, BoxSE b) -> bool
-                  { return a.m_score > b.m_score; });
-        // save to current frame.
-        mCurrentFrame.boxes = boxes_online;
-
-        // std::vector<BoxSE> --> Eigen::MatrixXd.
-        int i = 0;
-        Eigen::MatrixXd eigenMat;
-        eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
-        for (auto &box : mCurrentFrame.boxes)
-        {
-            // std::cout << box.m_class << " " << box.x << " " << box.y << " "
-            //           << box.width << " " << box.height << " " << box.m_score << std::endl;
-            /**
-            * keyboard  66 199 257 193 51
-            * mouse     64 377 320 31 39
-            * cup       41 442 293 51 63
-            * tvmonitor 62 232 93 156 141
-            * remote    65 44 260 38 57
-            */
-            eigenMat(i, 0) = box.x;
-            eigenMat(i, 1) = box.y;
-            eigenMat(i, 2) = box.width;
-            eigenMat(i, 3) = box.height;
-            eigenMat(i, 4) = box.m_score;
-            i++;
-        }
-        // save to current frame.
-        mCurrentFrame.boxes_eigen = eigenMat;
-    }
-    else
-    {
-        // offline object box.
-        std::string filePath = WORK_SPACE_PATH + "/data/yolo_txts/" + to_string(timestamp) + ".txt";
-        ifstream infile(filePath, ios::in);
-        if (!infile.is_open())
-        {
-            cout << "yolo_detection file open fail" << endl;
-            exit(233);
-        }
-        // else
-        //     cout << "read offline boundingbox" << endl;
-
-        vector<int> row; // one row, one object.
-        int tmp;
-        string line;
-
-        // save as vector<vector<int>> format.
-        while (getline(infile, line))
-        {
-            // string to int.
-            istringstream istr(line);
-            while (istr >> tmp)
-            {
-                row.push_back(tmp);
-            }
-
-            _mat.push_back(row); // vector<vector<int>>.
-            row.clear();
-            istr.clear();
-            line.clear();
-        }
-        infile.close();
-
-        //  vector<vector<int>> --> std::vector<BoxSE>.
-        std::vector<BoxSE> boxes_offline;
-        for (auto &mat_row : _mat)
-        {
-            BoxSE box;
-            box.m_class = mat_row[0];
-            box.m_score = mat_row[5];
-            box.x = mat_row[1];
-            box.y = mat_row[2];
-            box.width = mat_row[3];
-            box.height = mat_row[4];
-            // box.m_class_name = "";
-            boxes_offline.push_back(box);
-        }
-        std::sort(boxes_offline.begin(), boxes_offline.end(), [](BoxSE a, BoxSE b) -> bool {
-            return a.m_score > b.m_score;
-        });
-        // save to current frame.
-        mCurrentFrame.boxes = boxes_offline;
-
-        // std::vector<BoxSE> --> Eigen::MatrixXd.
-        int i = 0;
-        Eigen::MatrixXd eigenMat;
-        eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
-        for (auto &box : mCurrentFrame.boxes)
-        {
-            // std::cout << box.m_class << " " << box.x << " " << box.y << " "
-            //           << box.width << " " << box.height << " " << box.m_score << std::endl;
-            /**
-            * keyboard  66 199 257 193 51
-            * mouse     64 377 320 31 39
-            * cup       41 442 293 51 63
-            * tvmonitor 62 232 93 156 141
-            * remote    65 44 260 38 57
-            */
-            eigenMat(i, 0) = box.x;
-            eigenMat(i, 1) = box.y;
-            eigenMat(i, 2) = box.width;
-            eigenMat(i, 3) = box.height;
-            eigenMat(i, 4) = box.m_score;
-            i++;
-        }
-        // save to current frame.
-        mCurrentFrame.boxes_eigen = eigenMat;
-    }
-    // there are objects in current frame?
-    if (!mCurrentFrame.boxes.empty())
-        mCurrentFrame.have_detected = true;
-    // object detection.------------------------------------------------------------------------
-
-    // STEP get current camera groundtruth by timestamp. +++++++++++++++++++++++++++++++++++++++++++
-    // notice: only use the first frame's pose.
-    string timestamp_string = to_string(timestamp);
-    string timestamp_short_string = timestamp_string.substr(0, timestamp_string.length() - 4);
-
-    Eigen::MatrixXd truth_frame_poses(1, 8); // camera pose Eigen format.
-    cv::Mat cam_pose_mat;                    // camera pose Mat format.
-
-    if (miConstraintType == 1){
-        for (auto &row : mGroundtruth_mat)
-        {
-            string row_string = to_string(row[0]);
-            double delta_time = fabs(row[0] - timestamp);
-            // if (delta_time< 1)
-            //     std::cout << " [INFO] delta_time : " << delta_time << std::endl;
-            string row_short_string = row_string.substr(0, row_string.length() - 4);
-
-            if (row_short_string == timestamp_short_string)
-            // if (delta_time <= 0.05)
-            {
-                // vector --> Eigen.
-                for (int i = 0; i < (int)row.size(); i++)
-                {
-                    truth_frame_poses(0) = row[0];
-                    truth_frame_poses(1) = row[1];
-                    truth_frame_poses(2) = row[2];
-                    truth_frame_poses(3) = row[3];
-                    truth_frame_poses(4) = row[4];
-                    truth_frame_poses(5) = row[5];
-                    truth_frame_poses(6) = row[6];
-                    truth_frame_poses(7) = row[7];
-                }
-
-                // Eigen --> SE3.
-                g2o::SE3Quat cam_pose_se3(truth_frame_poses.row(0).tail<7>());
-                // std::cout << "cam_pose_se3\n" << cam_pose_se3 << std::endl;
-
-                // SE3 --> Mat.
-                cam_pose_mat = Converter::toCvMat(cam_pose_se3);
-
-                // save to current frame.
-                mCurrentFrame.mGroundtruthPose_mat = cam_pose_mat;
-                if (!mCurrentFrame.mGroundtruthPose_mat.empty())
-                {
-                    mCurrentFrame.mGroundtruthPose_eigen = Converter::toEigenMatrixXd(mCurrentFrame.mGroundtruthPose_mat);
-                }
-                break;
-            }
-            else
-            {
-                mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
-                mCurrentFrame.mGroundtruthPose_eigen = Eigen::Matrix4d::Identity(4, 4);
-            }
-        }
-    }else if (miConstraintType == 2){
-        mCurrentFrame.mGroundtruthPose_eigen = INIT_POSE;
-        // mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
-        cv::Mat cv_mat_32f;
-        cv::eigen2cv(mCurrentFrame.mGroundtruthPose_eigen, cv_mat_32f);
-        cv_mat_32f.convertTo(mCurrentFrame.mGroundtruthPose_mat, CV_32F);
-    }else{
-        mCurrentFrame.mGroundtruthPose_mat = cv::Mat::eye(4, 4, CV_32F);
-    }
-    // get the camera groundtruth by timestamp. ----------------------------------------------------------------------
-
-    Track();
-
-    return mCurrentFrame.mTcw.clone();
-}
 
 void Tracking::Track()
 {

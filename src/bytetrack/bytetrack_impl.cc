@@ -4,8 +4,8 @@
 namespace ORB_SLAM2
 {
 
-namespace BYTE_TRACK
-{
+// namespace BYTE_TRACK
+// {
 
 cv::Mat BYTETrackerImpl::StaticResize(cv::Mat &img)
 {
@@ -20,7 +20,7 @@ cv::Mat BYTETrackerImpl::StaticResize(cv::Mat &img)
     return out;
 }
 
-void BYTETrackerImpl::GenerateGridsAndStride(const int target_w, const int target_h, std::vector<int> &strides, std::vector<GridAndStride> &grid_strides)
+void BYTETrackerImpl::GenerateGridsAndStride(const int target_w, const int target_h, std::vector<int> &strides, std::vector<BYTE_TRACK::GridAndStride> &grid_strides)
 {
     for (auto stride : strides)
     {
@@ -30,20 +30,20 @@ void BYTETrackerImpl::GenerateGridsAndStride(const int target_w, const int targe
         {
             for (int g0 = 0; g0 < num_grid_w; g0++)
             {
-                grid_strides.push_back((GridAndStride){g0, g1, stride});
+                grid_strides.push_back((BYTE_TRACK::GridAndStride){g0, g1, stride});
             }
         }
     }
 }
 
-float BYTETrackerImpl::IntersectionArea(const Object &a, const Object &b)
+float BYTETrackerImpl::IntersectionArea(const BYTE_TRACK::Object &a, const BYTE_TRACK::Object &b)
 {
     Rect_<float> inter = a.rect & b.rect;
     return inter.area();
 }
 
 // 快速排序法
-void BYTETrackerImpl::QsortDescentInplace(std::vector<Object> &faceobjects, int left, int right)
+void BYTETrackerImpl::QsortDescentInplace(std::vector<BYTE_TRACK::Object> &faceobjects, int left, int right)
 {
     int i = left;
     int j = right;
@@ -80,7 +80,7 @@ void BYTETrackerImpl::QsortDescentInplace(std::vector<Object> &faceobjects, int 
     }
 }
 
-void BYTETrackerImpl::QsortDescentInplace(std::vector<Object> &objects)
+void BYTETrackerImpl::QsortDescentInplace(std::vector<BYTE_TRACK::Object> &objects)
 {
     if (objects.empty())
         return;
@@ -88,7 +88,7 @@ void BYTETrackerImpl::QsortDescentInplace(std::vector<Object> &objects)
     QsortDescentInplace(objects, 0, objects.size() - 1);
 }
 
-void BYTETrackerImpl::NMSSortedBboxes(const std::vector<Object> &faceobjects, std::vector<int> &picked, float nms_threshold)
+void BYTETrackerImpl::NMSSortedBboxes(const std::vector<BYTE_TRACK::Object> &faceobjects, std::vector<int> &picked, float nms_threshold)
 {
     picked.clear();
 
@@ -102,12 +102,12 @@ void BYTETrackerImpl::NMSSortedBboxes(const std::vector<Object> &faceobjects, st
 
     for (int i = 0; i < n; i++)
     {
-        const Object& a = faceobjects[i];
+        const BYTE_TRACK::Object& a = faceobjects[i];
 
         int keep = 1;
         for (int j = 0; j < (int)picked.size(); j++)
         {
-            const Object& b = faceobjects[picked[j]];
+            const BYTE_TRACK::Object& b = faceobjects[picked[j]];
 
             // intersection over union
             float inter_area = IntersectionArea(a, b);
@@ -122,7 +122,7 @@ void BYTETrackerImpl::NMSSortedBboxes(const std::vector<Object> &faceobjects, st
     }
 }
 
-void BYTETrackerImpl::GenerateYoloxProposals(std::vector<GridAndStride> grid_strides, float *feat_blob, float prob_threshold, std::vector<Object> &objects)
+void BYTETrackerImpl::GenerateYoloxProposals(std::vector<BYTE_TRACK::GridAndStride> grid_strides, float *feat_blob, float prob_threshold, std::vector<BYTE_TRACK::Object> &objects)
 {
     const int num_anchors = grid_strides.size();
 
@@ -149,7 +149,7 @@ void BYTETrackerImpl::GenerateYoloxProposals(std::vector<GridAndStride> grid_str
             float box_prob = box_objectness * box_cls_score;
             if (box_prob > prob_threshold)
             {
-                Object obj;
+                BYTE_TRACK::Object obj;
                 obj.rect.x = x0;
                 obj.rect.y = y0;
                 obj.rect.width = w;
@@ -189,11 +189,11 @@ float* BYTETrackerImpl::BlobFromImage(cv::Mat &img)
     return blob;
 }
 
-void BYTETrackerImpl::DecodeOutputs(float *prob, std::vector<Object> &objects, float scale, const int img_w, const int img_h)
+void BYTETrackerImpl::DecodeOutputs(float *prob, std::vector<BYTE_TRACK::Object> &objects, float scale, const int img_w, const int img_h)
 {
-    std::vector<Object> proposals;
+    std::vector<BYTE_TRACK::Object> proposals;
     std::vector<int> strides = {8, 16, 32};
-    std::vector<GridAndStride> grid_strides;
+    std::vector<BYTE_TRACK::GridAndStride> grid_strides;
     GenerateGridsAndStride(INPUT_W, INPUT_H, strides, grid_strides);
     GenerateYoloxProposals(grid_strides, prob, BBOX_CONF_THRESH, proposals);
     // std::cout << "num of boxes before nms: " << proposals.size() << std::endl;
@@ -304,7 +304,7 @@ BYTETrackerImpl::BYTETrackerImpl(const std::string &engine_file_path)
     prob = new float[output_size];
     mbFinishRequested = false;
 
-    tracker = new BYTETracker(fps, 30);
+    tracker = new BYTE_TRACK::BYTETracker(fps, 30);
 }
 
 BYTETrackerImpl::~BYTETrackerImpl()
@@ -340,9 +340,9 @@ void BYTETrackerImpl::Detect()
     // run inference
     // auto start = std::chrono::system_clock::now();
     DoInference(*context, blob, prob, output_size, pr_img.size());
-    std::vector<Object> objects;
+    std::vector<BYTE_TRACK::Object> objects;
     DecodeOutputs(prob, objects, scale, img_w, img_h);
-    std::vector<STrack> output_stracks = tracker->update(objects);
+    std::vector<BYTE_TRACK::STrack> output_stracks = tracker->update(objects);
     // auto end = chrono::system_clock::now();
     // cout << "[INFO] Cost Time: " << chrono::duration_cast<chrono::microseconds>(end - start).count() /1000.0 <<  "ms." << endl;
     // auto cost_ms = chrono::duration_cast<chrono::microseconds>(end - start).count()/1000.0;
@@ -356,7 +356,7 @@ void BYTETrackerImpl::Detect()
     }
 }
 
-void BYTETrackerImpl::GetResult(std::vector<STrack> &output)
+void BYTETrackerImpl::GetResult(std::vector<BYTE_TRACK::STrack> &output)
 {
     unique_lock<mutex> lock(mMutexResQueue);
     output = ResQueue.front();
@@ -433,5 +433,17 @@ bool BYTETrackerImpl::isFinished()
     return mbFinished;
 }
 
+BYTE_TRACK::Object BYTETrackerImpl::STrack2Object(BYTE_TRACK::STrack &strack)
+{
+    BYTE_TRACK::Object obj;
+    obj.label = strack.label;
+    obj.prob = strack.score;
+    cv::Rect rect(strack.tlwh[0], strack.tlwh[1], strack.tlwh[2], strack.tlwh[3]);
+    obj.rect = rect;
+    obj.idx = strack.track_id;
+    obj.nFrame = strack.frame_id;
+    return obj;
 }
+
+// }
 }

@@ -37,10 +37,8 @@ RGBDIMessageFlow::RGBDIMessageFlow(ros::NodeHandle &nh)
     // 系统初始化
     if (sensor == "RGBD"){
         slam_ptr_ = std::make_shared<ORB_SLAM2::System>(VocFile, YamlFile, "Full", ORB_SLAM2::System::RGBD, true, semanticOnline);
-    }else if (sensor == "MONO"){
-        slam_ptr_ = std::make_shared<ORB_SLAM2::System>(VocFile, YamlFile, "Full", ORB_SLAM2::System::MONOCULAR, true, semanticOnline);
     }else{
-        std::cerr << "[ERROR] ONLY SUPPORT RGBD OR MONOCULAR! " << std::endl;
+        std::cerr << "[ERROR] ONLY SUPPORT RGBD! " << std::endl;
         return;
     }
 
@@ -79,8 +77,6 @@ void RGBDIMessageFlow::Run()
 
         if (sensor == "RGBD"){
             slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);
-        }else if (sensor == "MONO"){
-            slam_ptr_->TrackMonocular(cvColorImgMat, current_time);
         }
 
         unsynced_imu_data_.clear();
@@ -335,8 +331,6 @@ RGBDMessageFlow::RGBDMessageFlow(ros::NodeHandle &nh)
     // 系统初始化
     if (sensor == "RGBD")
         slam_ptr_ = std::make_shared<ORB_SLAM2::System>(VocFile, YamlFile, "Full", ORB_SLAM2::System::RGBD, true, semanticOnline);
-    else if (sensor == "MONO")
-        slam_ptr_ = std::make_shared<ORB_SLAM2::System>(VocFile, YamlFile, "Full", ORB_SLAM2::System::MONOCULAR, true, semanticOnline);
     else{
         std::cerr << "[ERROR] ONLY SUPPORT RGBD OR MONOCULAR! " << std::endl;
         return;
@@ -363,8 +357,6 @@ void RGBDMessageFlow::Run()
 
         if (sensor == "RGBD")
             slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);
-        else if (sensor == "MONO")
-            slam_ptr_->TrackMonocular(cvColorImgMat, current_time);
     }
 }
 
