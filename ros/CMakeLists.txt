@@ -1,19 +1,21 @@
 cmake_minimum_required(VERSION 3.10.2)
-project(ros_evo)
+project(object_slam)
 
 IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE release)
 ENDIF()
 
+add_compile_options(-std=c++14)
+
 # yolox
-ADD_DEFINITIONS("-w -O2 -pthread")
+ADD_DEFINITIONS("-w -pthread")
 option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
 set(CMAKE_CXX_STANDARD 14)
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall  -O3 -march=native  -Wno-unused-function  -Wno-return-type")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall   -O3 -march=native  -Wno-unused-function  -Wno-return-type")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}  -Wall -O2 -Wno-unused-function  -Wno-return-type")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -O2  -Wno-unused-function  -Wno-return-type")
 
 # set carv needed flags
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D__STDC_CONSTANT_MACROS -DGL_GLEXT_PROTOTYPES -D_LINUX -D_REENTRANT -DCGAL_USE_F2C -DCGAL_DISABLE_ROUNDING_MATH_CHECK")
@@ -29,11 +31,11 @@ if(NOT OpenCV_FOUND)
     endif()
 endif()
 message(STATUS "Using opencv version ${OpenCV_VERSION}")
-find_package(Eigen3 3.1.0 REQUIRED)
+find_package(Eigen3 3.2.7 REQUIRED)
 find_package(Pangolin REQUIRED)
 
-# # glog
-# include(../cmake_modules/glog.cmake)
+# glog
+include(../cmake_modules/glog.cmake)
 
 # find openmp
 find_package(OpenMP)
@@ -56,7 +58,7 @@ include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIR})
 
 # Find PCL
-find_package( PCL 1.7 REQUIRED)
+find_package( PCL 1.9.0 REQUIRED)
 add_definitions( ${PCL_DEFINITIONS} )
 link_directories( ${PCL_LIBRARY_DIRS} )
 
@@ -77,7 +79,7 @@ link_directories(/home/chen/cuda/lib64)
 include_directories(/home/chen/DeepLearning/settings/TensorRT-7.2.1.6/include)
 link_directories(/home/chen/DeepLearning/settings/TensorRT-7.2.1.6/lib)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Ofast -Wfatal-errors -D_MWAITXINTRIN_H_INCLUDED")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wfatal-errors")
 
 
 find_package(
@@ -107,13 +109,14 @@ generate_messages(DEPENDENCIES
   std_msgs
 )
 
-catkin_package(
-  CATKIN_DEPENDS
-  message_runtime
-)
+# catkin_package(
+#   CATKIN_DEPENDS
+#   message_runtime
+# )
 
 include_directories(
     include ${catkin_INCLUDE_DIRS}
+    /usr/local/include/eigen3
     ${PROJECT_SOURCE_DIR}
     ${PROJECT_SOURCE_DIR}/include
     ${PROJECT_SOURCE_DIR}/../include
@@ -127,13 +130,14 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../include/PEAC
     ${PROJECT_SOURCE_DIR}/../src/DepthFilter
     ${PROJECT_SOURCE_DIR}/../src/bytetrack
+    # ${PROJECT_SOURCE_DIR}/../src/YOLOX
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../lib)
 
 add_library(${PROJECT_NAME}_lib SHARED
     # yolox
-    # ../src/YOLOX.cc
+    # ../src/YOLOX/YOLOX.cc
     # ros
     src/message_flow.cc
     src/imu_subscriber.cc
@@ -181,7 +185,6 @@ add_library(${PROJECT_NAME}_lib SHARED
 target_link_libraries(${PROJECT_NAME}_lib
     ${catkin_LIBRARIES}
     ${OpenCV_LIBS}
-    ${EIGEN3_LIBS}
     ${Pangolin_LIBRARIES}
     ${PCL_LIBRARIES}
     ${PROJECT_SOURCE_DIR}/../Thirdparty/DBoW2/lib/libDBoW2.so
@@ -191,13 +194,13 @@ target_link_libraries(${PROJECT_NAME}_lib
     nvinfer
     cudart
     # bytetrack
-    # dw
+    dw
 )
 
 
-add_executable(ros_rgbd_imu app/ros_rgbd_imu.cpp)
-add_dependencies(ros_rgbd_imu ${catkin_EXPORTED_TARGETS})
-target_link_libraries(ros_rgbd_imu ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
+# add_executable(ros_rgbd_imu app/ros_rgbd_imu.cpp)
+# add_dependencies(ros_rgbd_imu ${catkin_EXPORTED_TARGETS})
+# target_link_libraries(ros_rgbd_imu ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
 
 add_executable(ros_rgbd app/ros_rgbd.cpp)
 add_dependencies(ros_rgbd ${catkin_EXPORTED_TARGETS})

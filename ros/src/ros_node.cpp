@@ -66,7 +66,7 @@ public:
 
         // 读取参数文件
         const std::string VocFile  = WORK_SPACE_PATH + "/Vocabulary/ORBvoc.bin";
-        const std::string YamlFile = WORK_SPACE_PATH + "/ros_test/config/D435i.yaml";
+        const std::string YamlFile = WORK_SPACE_PATH + "/ros/config/D435i.yaml";
 
         // 读取launch文件中的参数
         ros::param::param<std::string>("~sensor", sensor, "RGBD");

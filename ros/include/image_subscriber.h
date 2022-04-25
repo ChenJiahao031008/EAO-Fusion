@@ -4,7 +4,7 @@
  * @LastEditors: Chen Jiahao
  * @LastEditTime: 2021-12-21 16:44:06
  * @Description: file content
- * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/image_subscriber.h
+ * @FilePath: /catkin_ws/src/EAO-SLAM/ros/include/image_subscriber.h
  */
 #ifndef _IMG_SUBSCRIBER_HPP_
 #define _IMG_SUBSCRIBER_HPP_

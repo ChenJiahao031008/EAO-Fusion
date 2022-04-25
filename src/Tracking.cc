@@ -9,6 +9,13 @@
 * Author: Yanmin Wu
 * E-mail: wuyanminmax@gmail.com
 */
+#include <pcl/search/impl/search.hpp>
+
+#ifndef PCL_NO_PRECOMPILE
+#include <pcl/impl/instantiate.hpp>
+#include <pcl/point_types.h>
+PCL_INSTANTIATE(Search, PCL_POINT_TYPES)
+#endif // PCL_NO_PRECOMPILE
 
 #include "Tracking.h"
 
@@ -269,10 +276,8 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     // cv::Mat DepthFilter = jointBilateralFilter.Processor(rawImage, imDepth);
     // JBF filter end
 
-    // semantic
     if (bSemanticOnline)
     {
-        // unique_lock<mutex> lock(Semanticer->mMutexYOLOXQueue);
         // Semanticer->InsertImage(imRGB);
         ByteTracker->InsertImage(imRGB);
     }
@@ -304,7 +309,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     cv::Mat mImDepth = imDepth.clone();
 
-    // string DepthFilterSettingsFile = WORK_SPACE_PATH + "/ros_test/config/Depth_Filter.yaml";
+    // string DepthFilterSettingsFile = WORK_SPACE_PATH + "/ros/config/Depth_Filter.yaml";
     // cv::FileStorage fsSettings(DepthFilterSettingsFile, cv::FileStorage::READ);
     // if (!fsSettings.isOpened())
     // {
@@ -363,6 +368,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     {
         // TODO online detect.
         std::vector<BYTE_TRACK::Object> currentObjs;
+        // std::vector<ORB_SLAM2::Object> currentObjs;
         std::vector<BYTE_TRACK::STrack> currentStracks;
         auto start = std::chrono::system_clock::now();
         int StopCount = 0;

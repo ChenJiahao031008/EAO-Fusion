@@ -44,7 +44,7 @@ MapDrawer::MapDrawer(Map* pMap, const string &strSettingPath):mpMap(pMap)
     mPointSize = fSettings["Viewer.PointSize"];
     mCameraSize = fSettings["Viewer.CameraSize"];
     mCameraLineWidth = fSettings["Viewer.CameraLineWidth"];
-    // frontPath = "/home/chen/catkin_ws/src/EAO-SLAM/ros_test/config/Anonymous-Pro.ttf";
+    // frontPath = "/home/chen/catkin_ws/src/EAO-SLAM/ros/config/Anonymous-Pro.ttf";
     // frontSize = 20.0;
 }
 

@@ -1,5 +1,5 @@
 <launch>
-    <node pkg="ros_evo"  type="ros_rgbd_imu"  name="ros_rgbd_imu"  output="screen">
+    <node pkg="object_slam"  type="ros_node"  name="ros_node"  output="screen">
         <!-- <param name="sensor" value="MONO"/> -->
         <param name="sensor" value="RGBD"/>
         <param name="online" value="true" type="bool"/>

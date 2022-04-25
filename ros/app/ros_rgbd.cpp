@@ -4,10 +4,10 @@
  * @LastEditors: Chen Jiahao
  * @LastEditTime: 2021-12-23 21:53:38
  * @Description: file content
- * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/app/ros_rgbd.cpp
+ * @FilePath: /catkin_ws/src/EAO-SLAM/ros/app/ros_rgbd.cpp
  */
 #include "message_flow.h"
-#include "ros_evo/saveOdometry.h"
+#include "object_slam/saveOdometry.h"
 
 using namespace std;
 using namespace cv;
@@ -15,7 +15,7 @@ using namespace cv;
 std::string WORK_SPACE_PATH = "";
 
 bool save_odometry = false;
-bool SaveOdometryCb(ros_evo::saveOdometry::Request &request, ros_evo::saveOdometry::Response &response)
+bool SaveOdometryCb(object_slam::saveOdometry::Request &request, object_slam::saveOdometry::Response &response)
 {
     save_odometry = true;
     response.succeed = true;
@@ -24,7 +24,7 @@ bool SaveOdometryCb(ros_evo::saveOdometry::Request &request, ros_evo::saveOdomet
 
 int main(int argc, char *argv[])
 {
-    WORK_SPACE_PATH = ros::package::getPath("ros_evo") + "/../";
+    WORK_SPACE_PATH = ros::package::getPath("object_slam") + "/../";
 
     ros::init(argc, argv, "ros_node");
     ros::NodeHandle nh;

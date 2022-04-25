@@ -4,7 +4,7 @@
  * @LastEditors: Chen Jiahao
  * @LastEditTime: 2021-11-05 19:52:16
  * @Description: file content
- * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/include/imu_subscriber.h
+ * @FilePath: /catkin_ws/src/EAO-SLAM/ros/include/imu_subscriber.h
  */
 #ifndef _IMU_SUBSCRIBER_HPP_
 #define _IMU_SUBSCRIBER_HPP_

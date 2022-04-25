@@ -79,6 +79,7 @@ public:
 
 
     // void SetSemanticer(YOLOX* detector); //yolox
+
     void SetSemanticer(BYTETrackerImpl *detector);
 
     // Load new settings
@@ -209,6 +210,7 @@ protected:
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
+
     // NOTE
     // YOLOX* Semanticer;
     BYTETrackerImpl* ByteTracker;

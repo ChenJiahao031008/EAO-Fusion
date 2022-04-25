@@ -4,7 +4,7 @@
  * @LastEditors: Chen Jiahao
  * @LastEditTime: 2021-12-23 21:54:25
  * @Description: file content
- * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/src/imu_subscriber.cc
+ * @FilePath: /catkin_ws/src/EAO-SLAM/ros/src/imu_subscriber.cc
  */
 #include "imu_subscriber.h"
 

@@ -1,0 +1,17 @@
+<launch>
+    <!-- <arg name="bag_filename" default="/home/chen/ros_active_SLAM/longloop_2022-03-23-15-56-05.bag"/> -->
+    <arg name="bag_filename" default="/home/chen/Datasets/TUM/freiburg2_desk.bag"/>
+
+    <node pkg="object_slam"  type="ros_rgbd"  name="ros_rgbd"  output="screen">
+        <param name="sensor" value="RGBD"/>
+        <param name="online" value="true" type="bool"/>
+        <param name="rosbag" value="false" type="bool"/>
+        <!-- <param name="rosbag" value="true" type="bool"/> -->
+        <!-- <param name="gravity_aixs" value="2" type="int"/> -->
+        <param name="gravity_aixs" value="2" type="int"/>
+    </node>
+
+    <!-- 启动rosbag -->
+    <node name="playbag" pkg="rosbag" type="play"
+      args="--clock $(arg bag_filename)" />
+</launch>

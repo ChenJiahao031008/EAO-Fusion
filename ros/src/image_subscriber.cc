@@ -4,7 +4,7 @@
  * @LastEditors: Chen Jiahao
  * @LastEditTime: 2021-12-23 21:54:18
  * @Description: file content
- * @FilePath: /catkin_ws/src/EAO-SLAM/ros_test/src/image_subscriber.cc
+ * @FilePath: /catkin_ws/src/EAO-SLAM/ros/src/image_subscriber.cc
  */
 #include "image_subscriber.h"
 

@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <package format="2">
-  <name>ros_evo</name>
+  <name>object_slam</name>
   <version>0.0.0</version>
-  <description>The ros_evo package</description>
+  <description>The object_slam package</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
   <!-- Example:  -->
@@ -56,6 +56,7 @@
   <exec_depend>roscpp</exec_depend>
   <exec_depend>rospy</exec_depend>
 
+  <build_depend>message_generation</build_depend>
   <build_export_depend>message_generation</build_export_depend>
   <exec_depend>message_runtime</exec_depend>
 

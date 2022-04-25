@@ -108,7 +108,7 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
     // _____________________________yolox_______________________________
-    std::string engineFile = WORK_SPACE_PATH + "/ros_test/config/model_trt.engine";
+    std::string engineFile = WORK_SPACE_PATH + "/ros/config/model_trt.engine";
     // mpSemanticer = new YOLOX(engineFile);
     // mptSemanticer = new thread(&ORB_SLAM2::YOLOX::Run, mpSemanticer);
 
