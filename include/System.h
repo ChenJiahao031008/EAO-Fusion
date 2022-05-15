@@ -103,6 +103,9 @@ public:
     // See format details at: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
     void SaveTrajectoryKITTI(const string &filename);
 
+public:
+    Tracking* mpTracker; // temp
+
 private:
 
     // Input sensor
@@ -111,7 +114,7 @@ private:
     ORBVocabulary* mpVocabulary;
     KeyFrameDatabase* mpKeyFrameDatabase;
     Map* mpMap;
-    Tracking* mpTracker;
+
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopCloser;
     Viewer* mpViewer;

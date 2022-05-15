@@ -34,17 +34,19 @@
 class BoxSE : public cv::Rect
 {
 public:
-	int m_class = -1;			// class id.
-	float m_score = 0.0F;		// probability.
-	std::string m_class_name;	// class name.
+	int m_class = -1;		  // class id.
+	float m_score = 0.0F;	  // probability.
+	std::string m_class_name; // class name.
+
+	int m_track_id = -1; // track id
 
 	BoxSE()
 	{
 		m_class_name = "Unknown";
 	}
 
-	BoxSE(int c, float s, int _x, int _y, int _w, int _h, std::string name = "")
-		:m_class(c), m_score(s)
+	BoxSE(int c, float s, int track_id, int _x, int _y, int _w, int _h, std::string name = "")
+		: m_class(c), m_score(s), m_track_id(track_id)
 	{
 		this->x = _x;
 		this->y = _y;

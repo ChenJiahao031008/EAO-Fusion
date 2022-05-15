@@ -352,8 +352,9 @@ void RGBDMessageFlow::Run()
     {
         if (!ValidData())
             continue;
-        double current_time = ros::Time::now().toSec();
-        // double current_time = current_image_color_data_.header.stamp.toSec();
+        // double current_time = ros::Time::now().toSec();
+        double current_time = current_image_color_data_.header.stamp.toSec();
+        slam_ptr_->mpTracker->ByteTracker->InsertImage(cvColorImgMat);
 
         if (sensor == "RGBD")
             slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);
@@ -396,7 +397,7 @@ bool RGBDMessageFlow::ValidData()
     }
 
     // // 初始时刻不准，扔掉
-    // if (count < 30){
+    // if (count < 5){
     //     count++;
     //     return false;
     // }

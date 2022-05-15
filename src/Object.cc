@@ -35,6 +35,7 @@ void Object_2D::CopyBoxes(const BoxSE &box)
     // class, probability.
     _class_id = box.m_class;
     mScore = box.m_score;
+    _track_id = box.m_track_id;
 
     // box.
     left = box.x;
@@ -177,6 +178,104 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
     int IouMaxObjID = -1;               // temporary variable.
     float IouThreshold = 0.5;           // IoU threshold.
 
+// #define TRACK
+#ifdef TRACK
+    // ****************************************************************************
+    //         STEP 0. Tracker data association. combine iou to get proper score              *
+    // ****************************************************************************
+    bool bAssoByTracker = false;
+    int current_track_id = _track_id;
+    float track_score = 0;
+    float TrackThreshhold = 0.7;
+    for (int i = 0; i < (int)mpMap->mvObjectMap.size(); i++)
+    {
+        if (_class_id != mpMap->mvObjectMap[i]->mnClass)
+            continue;
+
+        if (mpMap->mvObjectMap[i]->bBadErase)
+            continue;
+
+        if (mpMap->mvObjectMap[i]->mnLastAddID == mCurrentFrame.mnId - 1)
+        {
+            // step 1.1 predict object bounding box according to last frame and next to last frame.
+            if (mpMap->mvObjectMap[i]->mnLastLastAddID == mCurrentFrame.mnId - 2)
+            {
+                // left-top.
+                float left_top_x = mpMap->mvObjectMap[i]->mLastRect.x * 2 - mpMap->mvObjectMap[i]->mLastLastRect.x;
+                if (left_top_x < 0)
+                    left_top_x = 0;
+                float left_top_y = mpMap->mvObjectMap[i]->mLastRect.y * 2 - mpMap->mvObjectMap[i]->mLastLastRect.y;
+                if (left_top_y < 0)
+                    left_top_y = 0;
+
+                // right-bottom.
+                float right_down_x = (mpMap->mvObjectMap[i]->mLastRect.x + mpMap->mvObjectMap[i]->mLastRect.width) * 2 - (mpMap->mvObjectMap[i]->mLastLastRect.x + mpMap->mvObjectMap[i]->mLastLastRect.width);
+                if (left_top_x > image.cols)
+                    right_down_x = image.cols;
+                float right_down_y = (mpMap->mvObjectMap[i]->mLastRect.y + mpMap->mvObjectMap[i]->mLastRect.height) * 2 - (mpMap->mvObjectMap[i]->mLastLastRect.y + mpMap->mvObjectMap[i]->mLastLastRect.height);
+                if (left_top_y > image.rows)
+                    right_down_y = image.rows;
+
+                float width = right_down_x - left_top_x;
+                float height = right_down_y - left_top_y;
+
+                // predicted bounding box.
+                RectPredict = cv::Rect(left_top_x, left_top_y, width, height);
+
+                // If two consecutive frames are observed, increase the threshold.
+                IouThreshold = 0.6;
+            }
+            else
+                RectPredict = mpMap->mvObjectMap[i]->mLastRect;
+
+            // step 1.2 compute IoU, record the max IoU and the map object ID.
+            float Iou = Converter::bboxOverlapratio(RectCurrent, RectPredict);
+            // if track id is same, then give object a high score used to iou.
+            int last_track_id = mpMap->mvObjectMap[i]->mntrack_id;
+
+            if ((Iou > IouThreshold) && Iou > IouMax && (last_track_id == current_track_id))
+            {
+                IouMax = Iou;
+                IouMaxObjID = i;
+                track_score = 1;
+            }
+            else if (last_track_id == current_track_id)
+            {
+                track_score = 0.6 * mScore + 0.4 * Iou;
+                if (track_score >= (TrackThreshhold - 0.2))
+                {
+                    IouMax = Iou;
+                    IouMaxObjID = i;
+                    track_score = track_score + 0.2;
+                }
+            }
+            else if ((Iou > IouThreshold) && Iou > IouMax)
+            {
+                IouMax = Iou;
+                IouMaxObjID = i;
+                track_score = Iou;
+            }
+        }
+    }
+    // step 1.3 if the association is successful, update the map object.
+    if ((IouMax > 0) && (IouMaxObjID >= 0) && (track_score >= TrackThreshhold))
+    {
+        // update.
+        bool bFlag = mpMap->mvObjectMap[IouMaxObjID]->DataAssociateUpdate(this, mCurrentFrame, image, 1);
+
+        if (bFlag)
+        {
+            bAssoByIou = true;          // associated by IoU.
+            nAssoByIouId = IouMaxObjID; // associated map object id.
+            bool bAssoBytracker = true; // associated by track
+            cout << "association by tracker!\n"
+                 << "IouMax=" << IouMax << "\nObjID=" << IouMaxObjID << "\ntrack score=" << track_score << endl
+                 << endl;
+        }
+    }
+
+    // track data association END ----------------------------------------------------------------------------
+#else
     // ****************************************************
     //         STEP 1. IoU data association.              *
     // ****************************************************
@@ -247,6 +346,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         }
     }
     // Iou data association END ----------------------------------------------------------------------------
+#endif
 
     // *************************************************
     //      STEP 2. Nonparametric data association     *
@@ -688,6 +788,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         ObjectMapSingle->msFrameId.insert(mCurrentFrame.mnId);
         ObjectMapSingle->mSumPointsPos = sum_pos_3d;
         ObjectMapSingle->mCenter3D = _Pos;
+        ObjectMapSingle->mntrack_id = _track_id;
         this->mAssMapObjCenter = this->_Pos;
 
         // add properties of the point and save it to the object.

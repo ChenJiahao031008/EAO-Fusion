@@ -23,6 +23,7 @@ struct Object
     float prob;
 	int idx = -1;
 	int nFrame = -1;
+	int track_id = -1;
 };
 
 class BYTETracker
@@ -33,6 +34,14 @@ public:
 
 	std::vector<STrack> update(const std::vector<Object>& objects);
 	cv::Scalar get_color(int idx);
+
+	static double lapjv(
+		const std::vector<std::vector<float>> &cost,
+		std::vector<int> &rowsol,
+		std::vector<int> &colsol,
+		bool extend_cost = false,
+		float cost_limit = LONG_MAX,
+		bool return_cost = true);
 
 private:
 	std::vector<STrack*> joint_stracks(std::vector<STrack*> &tlista, std::vector<STrack> &tlistb);
@@ -46,9 +55,6 @@ private:
 	std::vector<std::vector<float> > iou_distance(std::vector<STrack*> &atracks, std::vector<STrack> &btracks, int &dist_size, int &dist_size_size);
 	std::vector<std::vector<float> > iou_distance(std::vector<STrack> &atracks, std::vector<STrack> &btracks);
 	std::vector<std::vector<float> > ious(std::vector<std::vector<float> > &atlbrs, std::vector<std::vector<float> > &btlbrs);
-
-	double lapjv(const std::vector<std::vector<float> > &cost, std::vector<int> &rowsol, std::vector<int> &colsol,
-		bool extend_cost = false, float cost_limit = LONG_MAX, bool return_cost = true);
 
 private:
 

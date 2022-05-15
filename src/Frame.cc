@@ -36,8 +36,8 @@ Frame::Frame(const Frame &frame)
       mTimeStamp(frame.mTimeStamp),
       mK(frame.mK.clone()),
       mDistCoef(frame.mDistCoef.clone()),
-      im_(frame.im_.clone()),   //new add.
-      rgb_(frame.rgb_.clone()), //new add.
+      im_(frame.im_.clone()),   // new add.
+      rgb_(frame.rgb_.clone()), // new add.
       mbf(frame.mbf),
       mb(frame.mb),
       mThDepth(frame.mThDepth),
@@ -66,15 +66,17 @@ Frame::Frame(const Frame &frame)
       mvInvScaleFactors(frame.mvInvScaleFactors),
       mvLevelSigma2(frame.mvLevelSigma2),
       mvInvLevelSigma2(frame.mvInvLevelSigma2),
-      //add plane
-      mvPlanePoints(frame.mvPlanePoints), //add plane
+      // add plane
+      mvPlanePoints(frame.mvPlanePoints), // add plane
       mvPlaneCoefficients(frame.mvPlaneCoefficients),
       mbNewPlane(frame.mbNewPlane),
       mvpMapPlanes(frame.mvpMapPlanes),
       mnPlaneNum(frame.mnPlaneNum),
       mvbPlaneOutlier(frame.mvbPlaneOutlier),
       mnRealPlaneNum(frame.mnRealPlaneNum),
-      mvBoundaryPoints(frame.mvBoundaryPoints)
+      mvBoundaryPoints(frame.mvBoundaryPoints),
+      mIsKeyFrame(frame.mIsKeyFrame),
+      mImDepth(frame.mImDepth)
 {
     for(int i=0;i<FRAME_GRID_COLS;i++)
         for(int j=0; j<FRAME_GRID_ROWS; j++)
@@ -93,65 +95,7 @@ Frame::Frame(const Frame &frame)
 }
 
 
-Frame::Frame(const cv::Mat &imLeft, const cv::Mat &imRight, const double &timeStamp, ORBextractor* extractorLeft, ORBextractor* extractorRight, ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth)
-    :mpORBvocabulary(voc),mpORBextractorLeft(extractorLeft),mpORBextractorRight(extractorRight), mTimeStamp(timeStamp), mK(K.clone()),mDistCoef(distCoef.clone()), mbf(bf), mThDepth(thDepth),
-     mpReferenceKF(static_cast<KeyFrame*>(NULL))
-{
-    // Frame ID
-    mnId=nNextId++;
-
-    // Scale Level Info
-    mnScaleLevels = mpORBextractorLeft->GetLevels();
-    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
-    mfLogScaleFactor = log(mfScaleFactor);
-    mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
-    mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
-    mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
-    mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
-
-    // ORB extraction
-    thread threadLeft(&Frame::ExtractORB,this,0,imLeft);
-    thread threadRight(&Frame::ExtractORB,this,1,imRight);
-    threadLeft.join();
-    threadRight.join();
-
-    if(mvKeys.empty())
-        return;
-
-    N = mvKeys.size();
-
-    UndistortKeyPoints();
-
-    ComputeStereoMatches();
-
-    mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
-    mvbOutlier = vector<bool>(N,false);
-
-
-    // This is done only for the first Frame (or after a change in the calibration)
-    if(mbInitialComputations)
-    {
-        ComputeImageBounds(imLeft);
-
-        mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/(mnMaxX-mnMinX);
-        mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/(mnMaxY-mnMinY);
-
-        fx = K.at<float>(0,0);
-        fy = K.at<float>(1,1);
-        cx = K.at<float>(0,2);
-        cy = K.at<float>(1,2);
-        invfx = 1.0f/fx;
-        invfy = 1.0f/fy;
-
-        mbInitialComputations=false;
-    }
-
-    mb = mbf/fx;
-
-    AssignFeaturesToGrid();
-}
-
-//rgbd
+//rgbd -- boxes
 Frame::Frame(const cv::Mat &rawImage, // color image.
              const cv::Mat &imGray,
              const cv::Mat &imDepth,
@@ -163,7 +107,7 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
              const float &bf,
              const float &thDepth,
              cv::Mat &grayimg,
-             cv::Mat &rgbimg)
+             std::vector<BoxSE> &vboxes)
     : mpORBvocabulary(voc),
       mpORBextractorLeft(extractor),
       mpORBextractorRight(static_cast<ORBextractor *>(NULL)),
@@ -173,10 +117,13 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
       mK(K.clone()),
       mDistCoef(distCoef.clone()),
       im_(grayimg.clone()),
-      rgb_(rgbimg.clone()),
+      rgb_(rawImage.clone()),
       mbf(bf),
-      mThDepth(thDepth)
+      mThDepth(thDepth),
+      mIsKeyFrame(false),
+      mImDepth(imDepth)
 {
+    boxes = vboxes;
     // Frame ID
     mnId=nNextId++;
 
@@ -192,6 +139,51 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     // ORB extraction
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
     ExtractORB(0,imGray);
+
+    std::vector<cv::KeyPoint> _mvKeys;
+    cv::Mat _mDescriptors;
+
+    std::cout << "before : N is " << mvKeys.size() << std::endl;
+
+    for (size_t i(0); i < mvKeys.size(); ++i)
+    {
+        int val = 1;
+        for (size_t j(0); j<boxes.size(); ++j){
+            if (boxes[j].m_class == 0 &&
+                mvKeys[i].pt.x > boxes[j].x &&
+                mvKeys[i].pt.x < (boxes[j].x + boxes[j].width) &&
+                mvKeys[i].pt.y > boxes[j].y &&
+                mvKeys[i].pt.y < (boxes[j].y + boxes[j].height))
+            {
+                // std::cout << "x and y : " << boxes[j].x << "," << boxes[j].y << std::endl;
+                // std::cout << "h and w : " << boxes[j].height << "," << boxes[j].width << std::endl;
+                val = 0;
+                break;
+            }
+        }
+
+        if (val == 1)
+        {
+            _mvKeys.push_back(mvKeys[i]);
+            _mDescriptors.push_back(mDescriptors.row(i));
+        }
+    }
+    mvKeys = _mvKeys;
+    mDescriptors = _mDescriptors;
+
+    std::cout << "After : N is " << mvKeys.size() << std::endl;
+
+    auto show = rawImage.clone();
+    for (auto i:mvKeys){
+        cv::circle(show, i.pt, 4, cv::Scalar(0, 255, 0), -1);
+    }
+    for (auto b: boxes){
+        if (b.m_class != 0) continue;
+        cv::rectangle(show, b, cv::Scalar(0255, 0, 0));
+    }
+
+    // cv::imwrite("/home/chen/Datasets/tmp2/test.png", show);
+    std::cout << "------------------------------" << std::endl;
 
     N = mvKeys.size();
 
@@ -228,22 +220,173 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     AssignFeaturesToGrid();
     std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
     double t12 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
-    std::cout << "[COST TIME] Point Extraction Time is : " << t12 << std::endl;
+    // std::cout << "[COST TIME] Point Extraction Time is : " << t12 << std::endl;
 
 
     // add plane --------------------------
     // 由于特征提取时间和面特征提取时间加在一起都没有目标检测时间耗时大，因此这里并没有采用并行处理的方法
     std::chrono::steady_clock::time_point t5 = std::chrono::steady_clock::now();
     // case1 :
-    // ComputePlanesFromOrganizedPointCloud(imDepth);
+    ComputePlanesFromOrganizedPointCloud(imDepth);
     // case2:
-    ComputePlanesFromPEAC(imDepth);
+    // ComputePlanesFromPEAC(imDepth);
+
     std::chrono::steady_clock::time_point t6 = std::chrono::steady_clock::now();
     double t56 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t5).count();
-    std::cout << "[COST TIME] Plane Extraction Time is : " << t56 << std::endl;
+    // std::cout << "[COST TIME] Plane Extraction Time is : " << t56 << std::endl;
 
     double t16 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t1).count();
-    std::cout << "[COST TIME] Total Extraction Time is : " << t16 << std::endl;
+    // std::cout << "[COST TIME] Total Extraction Time is : " << t16 << std::endl;
+
+    mnRealPlaneNum = mvPlanePoints.size();
+    mnPlaneNum = mvPlanePoints.size();
+    // std::cout << "[INFO] Plane Num is : " << mnPlaneNum << std::endl;
+    mvpMapPlanes = vector<MapPlane *>(mnPlaneNum, static_cast<MapPlane *>(nullptr));
+    mvbPlaneOutlier = vector<bool>(mnPlaneNum, false);
+}
+
+// rgbd -- mask
+Frame::Frame(const cv::Mat &rawImage, // color image.
+             const cv::Mat &imGray,
+             const cv::Mat &imDepth,
+             const double &timeStamp,
+             ORBextractor *extractor,
+             ORBVocabulary *voc,
+             cv::Mat &K,
+             cv::Mat &distCoef,
+             const float &bf,
+             const float &thDepth,
+             cv::Mat &grayimg,
+             cv::Mat &mask)
+    : mpORBvocabulary(voc),
+      mpORBextractorLeft(extractor),
+      mpORBextractorRight(static_cast<ORBextractor *>(NULL)),
+      mTimeStamp(timeStamp),
+      mColorImage(rawImage.clone()),   // color image.
+      mQuadricImage(rawImage.clone()), // quadrics image.
+      mK(K.clone()),
+      mDistCoef(distCoef.clone()),
+      im_(grayimg.clone()),
+      rgb_(rawImage.clone()),
+      mbf(bf),
+      mThDepth(thDepth),
+      mIsKeyFrame(false),
+      mImDepth(imDepth)
+{
+    // Frame ID
+    mnId = nNextId++;
+
+    // Scale Level Info
+    mnScaleLevels = mpORBextractorLeft->GetLevels();
+    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
+    mfLogScaleFactor = log(mfScaleFactor);
+    mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
+    mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
+    mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
+    mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
+
+    // ORB extraction
+    std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
+    ExtractORB(0, imGray);
+
+
+    std::cout << "before : N is " << mvKeys.size() << std::endl;
+
+    // Delete those ORB points that fall in mask borders
+    cv::Mat Mask_dil = mask.clone();
+    int dilation_size = 15;
+    cv::Mat kernel = getStructuringElement(cv::MORPH_ELLIPSE,
+                                           cv::Size(2 * dilation_size + 1, 2 * dilation_size + 1),
+                                           cv::Point(dilation_size, dilation_size));
+    cv::erode(mask, Mask_dil, kernel);
+
+    if (mvKeys.empty())
+        return;
+
+    std::vector<cv::KeyPoint> _mvKeys;
+    cv::Mat _mDescriptors;
+
+    for (size_t i(0); i < mvKeys.size(); ++i)
+    {
+        int val = (int)Mask_dil.at<uchar>(mvKeys[i].pt.y, mvKeys[i].pt.x);
+        if (val == 1)
+        {
+            _mvKeys.push_back(mvKeys[i]);
+            _mDescriptors.push_back(mDescriptors.row(i));
+        }
+    }
+
+    mvKeys = _mvKeys;
+    mDescriptors = _mDescriptors;
+
+    std::cout << "After : N is " << mvKeys.size() << std::endl;
+
+    auto show = rawImage.clone();
+    for (auto i : mvKeys)
+    {
+        cv::circle(show, i.pt, 4, cv::Scalar(0, 255, 0), -1);
+    }
+    for (auto b : boxes)
+    {
+        if (b.m_class != 0)
+            continue;
+        cv::rectangle(show, b, cv::Scalar(0255, 0, 0));
+    }
+
+    // cv::imwrite("/home/chen/Datasets/tmp2/test_2.png", show);
+    // std::cout << "------------------------------" << std::endl;
+
+    N = mvKeys.size();
+
+    if (mvKeys.empty())
+        return;
+
+    UndistortKeyPoints();
+
+    ComputeStereoFromRGBD(imDepth);
+
+    mvpMapPoints = vector<MapPoint *>(N, static_cast<MapPoint *>(NULL));
+    mvbOutlier = vector<bool>(N, false);
+
+    // This is done only for the first Frame (or after a change in the calibration)
+    if (mbInitialComputations)
+    {
+        ComputeImageBounds(imGray);
+
+        mfGridElementWidthInv = static_cast<float>(FRAME_GRID_COLS) / static_cast<float>(mnMaxX - mnMinX);
+        mfGridElementHeightInv = static_cast<float>(FRAME_GRID_ROWS) / static_cast<float>(mnMaxY - mnMinY);
+
+        fx = K.at<float>(0, 0);
+        fy = K.at<float>(1, 1);
+        cx = K.at<float>(0, 2);
+        cy = K.at<float>(1, 2);
+        invfx = 1.0f / fx;
+        invfy = 1.0f / fy;
+
+        mbInitialComputations = false;
+    }
+
+    mb = mbf / fx;
+
+    AssignFeaturesToGrid();
+    std::chrono::steady_clock::time_point t2 = std::chrono::steady_clock::now();
+    double t12 = std::chrono::duration_cast<std::chrono::duration<double>>(t2 - t1).count();
+    // std::cout << "[COST TIME] Point Extraction Time is : " << t12 << std::endl;
+
+    // add plane --------------------------
+    // 由于特征提取时间和面特征提取时间加在一起都没有目标检测时间耗时大，因此这里并没有采用并行处理的方法
+    std::chrono::steady_clock::time_point t5 = std::chrono::steady_clock::now();
+    // case1 :
+    ComputePlanesFromOrganizedPointCloud(imDepth);
+    // case2:
+    // ComputePlanesFromPEAC(imDepth);
+
+    std::chrono::steady_clock::time_point t6 = std::chrono::steady_clock::now();
+    double t56 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t5).count();
+    // std::cout << "[COST TIME] Plane Extraction Time is : " << t56 << std::endl;
+
+    double t16 = std::chrono::duration_cast<std::chrono::duration<double>>(t6 - t1).count();
+    // std::cout << "[COST TIME] Total Extraction Time is : " << t16 << std::endl;
 
     mnRealPlaneNum = mvPlanePoints.size();
     mnPlaneNum = mvPlanePoints.size();
@@ -259,7 +402,7 @@ void Frame::ComputePlanesFromOrganizedPointCloud(const cv::Mat &imDepth)
     PointCloud::Ptr inputCloud(new PointCloud());
 
     //TODO: 参数传递
-    int cloudDis = 2;
+    int cloudDis = 3;
     int min_plane = 500;
     float AngTh = 3.0;
     float DisTh = 0.05;
@@ -515,85 +658,6 @@ Frame::Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extra
     mb = mbf/fx;
 
     AssignFeaturesToGrid();
-}
-
-
-Frame::Frame(   const cv::Mat &rawImage,                // color image.
-                const cv::Mat &imGray,
-                const double &timeStamp,
-                ORBextractor* extractor,
-                ORBVocabulary* voc,
-                cv::Mat &K,
-                cv::Mat &distCoef,
-                const float &bf,
-                const float &thDepth,
-                cv::Mat &grayimg,
-                cv::Mat &rgbimg)
-                            :   mpORBvocabulary(voc),
-                                mpORBextractorLeft(extractor),
-                                mpORBextractorRight(static_cast<ORBextractor*>(NULL)),
-                                mTimeStamp(timeStamp),
-                                mColorImage(rawImage.clone()),      // color image.
-                                mQuadricImage(rawImage.clone()),    // quadrics image.
-                                mK(K.clone()),
-                                mDistCoef(distCoef.clone()),
-                                im_(grayimg.clone()),
-                                rgb_(rgbimg.clone()),
-                                mbf(bf),
-                                mThDepth(thDepth)
-{
-    // Frame ID
-    mnId=nNextId++;
-
-    // Scale Level Info
-    mnScaleLevels = mpORBextractorLeft->GetLevels();
-    mfScaleFactor = mpORBextractorLeft->GetScaleFactor();
-    mfLogScaleFactor = log(mfScaleFactor);
-    mvScaleFactors = mpORBextractorLeft->GetScaleFactors();
-    mvInvScaleFactors = mpORBextractorLeft->GetInverseScaleFactors();
-    mvLevelSigma2 = mpORBextractorLeft->GetScaleSigmaSquares();
-    mvInvLevelSigma2 = mpORBextractorLeft->GetInverseScaleSigmaSquares();
-
-    // ORB extraction
-    ExtractORB(0,imGray);
-
-    N = mvKeys.size();
-
-    if(mvKeys.empty())
-        return;
-
-    UndistortKeyPoints();
-
-    // Set no stereo information
-    mvuRight = vector<float>(N,-1);
-    mvDepth = vector<float>(N,-1);
-
-    mvpMapPoints = vector<MapPoint*>(N,static_cast<MapPoint*>(NULL));
-    mvbOutlier = vector<bool>(N,false);
-
-    // This is done only for the first Frame (or after a change in the calibration)
-    if(mbInitialComputations)
-    {
-        ComputeImageBounds(imGray);
-
-        mfGridElementWidthInv=static_cast<float>(FRAME_GRID_COLS)/static_cast<float>(mnMaxX-mnMinX);
-        mfGridElementHeightInv=static_cast<float>(FRAME_GRID_ROWS)/static_cast<float>(mnMaxY-mnMinY);
-
-        fx = K.at<float>(0,0);
-        fy = K.at<float>(1,1);
-        cx = K.at<float>(0,2);
-        cy = K.at<float>(1,2);
-        invfx = 1.0f/fx;
-        invfy = 1.0f/fy;
-
-        mbInitialComputations=false;
-    }
-
-    mb = mbf/fx;
-
-    AssignFeaturesToGrid();
-
-
 }
 
 void Frame::AssignFeaturesToGrid()

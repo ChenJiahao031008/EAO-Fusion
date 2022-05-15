@@ -59,6 +59,7 @@ typedef Eigen::Matrix<double,6,1> Vector6d;
 
 #include "Kernel.h"
 #include "Config.h"
+#include "YOLOv3SE.h"
 
 #ifdef __linux__
 #define _isnan(x) isnan(x)
@@ -118,22 +119,23 @@ public:
           const float &bf,
           const float &thDepth,
           cv::Mat &grayimg,
-          cv::Mat &rgbimg);
+          std::vector<BoxSE> &vboxes);
+
+    Frame(const cv::Mat &rawImage, // color image.
+          const cv::Mat &imGray,
+          const cv::Mat &imDepth,
+          const double &timeStamp,
+          ORBextractor *extractor,
+          ORBVocabulary *voc,
+          cv::Mat &K,
+          cv::Mat &distCoef,
+          const float &bf,
+          const float &thDepth,
+          cv::Mat &grayimg,
+          cv::Mat &mask);
 
     // Constructor for Monocular cameras.
     Frame(const cv::Mat &imGray, const double &timeStamp, ORBextractor* extractor,ORBVocabulary* voc, cv::Mat &K, cv::Mat &distCoef, const float &bf, const float &thDepth);
-
-    Frame(  const cv::Mat &imGray,
-            const cv::Mat &rawImage,
-            const double &timeStamp,
-            ORBextractor* extractor,
-            ORBVocabulary* voc,
-            cv::Mat &K,
-            cv::Mat &distCoef,
-            const float &bf,
-            const float &thDepth,
-            cv::Mat& grayimg,
-            cv::Mat& rgbimg);
 
     // Extract ORB on the image. 0 for left image and 1 for right image.
     void ExtractORB(int flag, const cv::Mat &im);
@@ -318,6 +320,10 @@ public:
     cv::Mat ComputePlaneWorldCoeff(const int &idx);
     // add plane --------------------------
 
+    // dynaslam  -----------------------
+    bool mIsKeyFrame;
+    cv::Mat mImDepth;
+    // dynaslam  -----------------------
 
 private:
 

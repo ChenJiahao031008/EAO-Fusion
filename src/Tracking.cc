@@ -276,11 +276,11 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     // cv::Mat DepthFilter = jointBilateralFilter.Processor(rawImage, imDepth);
     // JBF filter end
 
-    if (bSemanticOnline)
-    {
-        // Semanticer->InsertImage(imRGB);
-        ByteTracker->InsertImage(imRGB);
-    }
+    // if (bSemanticOnline)
+    // {
+    //     // Semanticer->InsertImage(imRGB);
+    //     ByteTracker->InsertImage(imRGB);
+    // }
 
     mImGray = imRGB;
     cv::Mat imDepth = imD;
@@ -309,56 +309,19 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     cv::Mat mImDepth = imDepth.clone();
 
-    // string DepthFilterSettingsFile = WORK_SPACE_PATH + "/ros/config/Depth_Filter.yaml";
-    // cv::FileStorage fsSettings(DepthFilterSettingsFile, cv::FileStorage::READ);
-    // if (!fsSettings.isOpened())
-    // {
-    //     cerr << "[ERROR] Failed to Open Settings File " << std::endl;
-    //     exit(-1);
-    // }
-    // Config conf(fsSettings);
-    // Kernel kernel(conf);
-    // cv::Mat tmpmImDepth = kernel.FillInFast(mImDepth);
-    // mImDepth = tmpmImDepth;
-
-    // undistort image:
-    // TODO: 选择图像去畸变而不是点去畸变，对于大部分场景个人认为是不必要的
-    // // 先转成灰度图去畸变再转回rgb，意义不明，只能理解为减少计算量
-    // cv::Mat gray_imu;
-    // cv::undistort(mImGray, gray_imu, mK, mDistCoef);
-
-    // cv::Mat rgb_imu;
-    // cv::undistort(imRGB, rgb_imu, mK, mDistCoef);
-    // if (rgb_imu.channels() == 1)
-    // {
-    //     cvtColor(rgb_imu, rgb_imu, CV_GRAY2RGB);
-    // }
-    // else if (rgb_imu.channels() == 3)
-    // {
-    //     if (!mbRGB)
-    //         cvtColor(rgb_imu, rgb_imu, CV_BGR2RGB);
-    // }
-    // else if (rgb_imu.channels() == 4)
-    // {
-    //     if (mbRGB)
-    //         cvtColor(rgb_imu, rgb_imu, CV_RGBA2RGB);
-    //     else
-    //         cvtColor(rgb_imu, rgb_imu, CV_BGRA2RGB);
-    // }
-
-    // STEP 1. Construct Frame.
-    mCurrentFrame = Frame(rawImage, // new: color image.
-                          mImGray,
-                          imDepth, // new: 深度图像
-                          timestamp,
-                          mpORBextractorLeft,
-                          mpORBVocabulary,
-                          mK,
-                          mDistCoef,
-                          mbf,
-                          mThDepth,
-                          mImGray,
-                          rawImage);
+    // // STEP 1. Construct Frame.
+    // mCurrentFrame = Frame(rawImage, // new: color image.
+    //                       mImGray,
+    //                       imDepth, // new: 深度图像
+    //                       timestamp,
+    //                       mpORBextractorLeft,
+    //                       mpORBVocabulary,
+    //                       mK,
+    //                       mDistCoef,
+    //                       mbf,
+    //                       mThDepth,
+    //                       mImGray,
+    //                       rawImage);
 
     vector<vector<int> > _mat;
     mCurrentFrame.have_detected = false;
@@ -366,19 +329,13 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     if (bSemanticOnline)
     {
-        // TODO online detect.
         std::vector<BYTE_TRACK::Object> currentObjs;
-        // std::vector<ORB_SLAM2::Object> currentObjs;
-        std::vector<BYTE_TRACK::STrack> currentStracks;
+        // std::vector<ORB_SLAM2::Object> currentObjs;;
         auto start = std::chrono::system_clock::now();
         int StopCount = 0;
         while (1){
-            // if (Semanticer->CheckResult()){
-            //     Semanticer->GetResult(currentObjs);
-            //     break;
-            // }
             if (ByteTracker->CheckResult()){
-                ByteTracker->GetResult(currentStracks);
+                ByteTracker->GetResult(track_anchors);
                 break;
             }
             // ByteTracker
@@ -390,7 +347,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             StopCount++;
         }
 
-        if (currentStracks.size() == 0)
+        if (track_anchors.size() == 0)
         {
             std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
@@ -400,7 +357,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
 
         std::vector<BoxSE> boxes_online;
-        for (auto &strack : currentStracks)
+        for (auto &strack : track_anchors)
         {
             auto objInfo = BYTETrackerImpl::STrack2Object(strack);
             if (objInfo.prob < 0.5)
@@ -408,7 +365,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             // 0: person; 24: handbag; 28: suitcase; 39: bottle; 56: chair;
             // 57: couch; 58:potted plant; 59: bed; 60: dining table; 62: tv;
             // 63: laptop; 66: keyboard; 67: phone; 73: book;
-            if (objInfo.label != 0 && objInfo.label != 24 && objInfo.label != 28 && objInfo.label != 39 && objInfo.label != 56 && objInfo.label != 57 && objInfo.label != 58 && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 62 && objInfo.label != 63 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73)
+            if (objInfo.label != 0 && objInfo.label != 24 && objInfo.label != 28 && objInfo.label != 39 && objInfo.label != 56 && objInfo.label != 57  && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 62 && objInfo.label != 63 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73)
                 continue;
             BoxSE box;
             box.m_class = objInfo.label;
@@ -417,19 +374,66 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             box.y = objInfo.rect.y;
             box.width = objInfo.rect.width;
             box.height = objInfo.rect.height;
+            box.m_track_id = objInfo.track_id;
             // box.m_class_name = "";
             boxes_online.push_back(box);
         }
         std::sort(boxes_online.begin(), boxes_online.end(), [](BoxSE a, BoxSE b) -> bool
                   { return a.m_score > b.m_score; });
+
+        refine_flag = 0;
+        for (auto &box: boxes_online){
+            // 如果框过大，超过图像的3/4，那么则使用精细分割
+            if (box.m_class == 0 && box.area() > 0.75 * 640 * 480){
+                refine_flag == 1;
+            }
+        }
+        if (refine_flag == 1){
+            LightTrack();
+            cv::Mat imMask;
+            mGeometry.GeometricModelCorrection(mCurrentFrame, mImGray, imMask);
+
+            mCurrentFrame = Frame(rawImage, // new: color image.
+                                  mImGray,
+                                  imDepth, // new: 深度图像
+                                  timestamp,
+                                  mpORBextractorLeft,
+                                  mpORBVocabulary,
+                                  mK,
+                                  mDistCoef,
+                                  mbf,
+                                  mThDepth,
+                                  mImGray,
+                                  imMask);
+        }else{
+            mCurrentFrame = Frame(rawImage, // new: color image.
+                                  mImGray,
+                                  imDepth, // new: 深度图像
+                                  timestamp,
+                                  mpORBextractorLeft,
+                                  mpORBVocabulary,
+                                  mK,
+                                  mDistCoef,
+                                  mbf,
+                                  mThDepth,
+                                  mImGray,
+                                  boxes_online);
+        }
+
         // save to current frame.
-        mCurrentFrame.boxes = boxes_online;
+        // for (vector<BoxSE>::iterator iter = boxes_online.begin(); iter != boxes_online.end();){
+        //     if (iter->m_class == 0)
+        //         iter = boxes_online.erase(iter);
+        //     else
+        //         iter++;
+        // }
+        // mCurrentFrame.boxes = boxes_online;
 
         // std::vector<BoxSE> --> Eigen::MatrixXd.
         int i = 0;
         Eigen::MatrixXd eigenMat;
 
-        eigenMat.resize((int)mCurrentFrame.boxes.size(), 5);
+        eigenMat.resize((int)mCurrentFrame.boxes.size(), 6);
         for (auto &box : mCurrentFrame.boxes)
         {
             eigenMat(i, 0) = box.x;
@@ -437,6 +441,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             eigenMat(i, 2) = box.width;
             eigenMat(i, 3) = box.height;
             eigenMat(i, 4) = box.m_score;
+            eigenMat(i, 5) = box.m_track_id;
             i++;
         }
         // save to current frame.
@@ -493,7 +498,21 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
         std::sort(boxes_offline.begin(), boxes_offline.end(), [](BoxSE a, BoxSE b) -> bool
                   { return a.m_score > b.m_score; });
         // save to current frame.
-        mCurrentFrame.boxes = boxes_offline;
+
+        mCurrentFrame = Frame(rawImage, // new: color image.
+                              mImGray,
+                              imDepth, // new: 深度图像
+                              timestamp,
+                              mpORBextractorLeft,
+                              mpORBVocabulary,
+                              mK,
+                              mDistCoef,
+                              mbf,
+                              mThDepth,
+                              mImGray,
+                              boxes_offline);
+
+        // mCurrentFrame.boxes = boxes_offline;
 
         // std::vector<BoxSE> --> Eigen::MatrixXd.
         int i = 0;
@@ -534,17 +553,22 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     Eigen::MatrixXd truth_frame_poses(1, 8); // camera pose Eigen format.
     cv::Mat cam_pose_mat; // camera pose Mat format.
     if (miConstraintType == 1){
+        // std::cout << "mGroundtruth_mat " << mGroundtruth_mat.size() << std::endl;
         for (auto &row : mGroundtruth_mat)
         {
             string row_string = to_string(row[0]);
             double delta_time = fabs(row[0] - timestamp);
-            // if (delta_time< 1)
+            // if (delta_time < 1)
             //     std::cout << " [INFO] delta_time : " << delta_time << std::endl;
+            // std::cout << " [INFO] cur time : " << std::setprecision(20) << timestamp << std::endl;
+            // std::cout << " [INFO] tag time : " << std::setprecision(20) << row[0] << std::endl;
+
             string row_short_string = row_string.substr(0, row_string.length() - 4);
 
-            if (row_short_string == timestamp_short_string)
-            // if (delta_time <= 0.05)
+            // if (row_short_string == timestamp_short_string)
+            if (delta_time <= 0.05)
             {
+                // std::cout << " [INFO] result_time : " << row_short_string << std::endl;
                 // vector --> Eigen.
                 for (int i = 0; i < (int)row.size(); i++)
                 {
@@ -590,6 +614,10 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     }
     // get the camera groundtruth by timestamp. ----------------------------------------------------------------------
     Track();
+    if (refine_flag == 1)
+    {
+        mGeometry.GeometricModelUpdateDB(mCurrentFrame);
+    }
 
     return mCurrentFrame.mTcw.clone();
 }
@@ -771,7 +799,7 @@ void Tracking::Track()
                 }
                 else
                 {
-                    // mCurrentFrame.mbNewPlane = true;
+                    mCurrentFrame.mbNewPlane = true;
                 }
             }
             // add plane end -----------------
@@ -1879,11 +1907,140 @@ bool Tracking::TrackWithMotionModel()
     // add plane end
 
     // if (nDisgardPlane > 0)
-        if (mbOnlyTracking)
+    if (mbOnlyTracking)
+    {
+        mbVO = nmatchesMap < 10;
+        return nmatches > 20;
+    }
+
+//--------------------------------------------------------------------------//
+    // ! bytetrack and localization
+    std::vector<std::shared_ptr<Object2DInstance>> tmp;
+    for (auto &anchor : track_anchors)
+    {
+        auto current_anchor = std::make_shared<Anchor>();
+
+        current_anchor->class_id = anchor.label;
+        current_anchor->score = anchor.score;
+        cv::Rect rect(anchor.tlwh[0], anchor.tlwh[1], anchor.tlwh[2], anchor.tlwh[3]);
+        current_anchor->rect = rect;
+        current_anchor->track_id = anchor.track_id;
+
+        int flag = -1;
+        for (size_t i = 0; i < object2DMap.size(); ++i)
         {
-            mbVO = nmatchesMap < 10;
-            return nmatches > 20;
+            auto obj2d = object2DMap[i];
+            if (obj2d->id == anchor.track_id)
+            {
+                auto current_object2d = std::make_shared<Object2DInstance>();
+                current_object2d->id = anchor.track_id;
+                current_object2d->anchor = current_anchor;
+                current_object2d->class_id = anchor.label;
+                current_object2d->detect_flag = 0;
+
+                current_object2d->history = object2DMap[i]->history;
+                current_object2d->history.emplace_back(current_anchor);
+
+                current_object2d->track_len = object2DMap[i]->track_len + 1;
+                current_object2d->frames_list = object2DMap[i]->frames_list;
+                auto Frame = std::make_shared<SimpleFrame>(mCurrentFrame);
+                current_object2d->frames_list.emplace_back(Frame);
+
+                tmp.emplace_back(current_object2d);
+                flag = 1;
+                break;
+            }
         }
+        if (flag == -1){
+            auto current_object2d = std::make_shared<Object2DInstance>();
+            current_object2d->id = anchor.track_id;
+            current_object2d->anchor = current_anchor;
+            current_object2d->class_id = anchor.label;
+            current_object2d->track_len = 0;
+            current_object2d->detect_flag = 0;
+            // object2DMap.emplace_back(current_object2d);
+            current_object2d->history.emplace_back(current_anchor);
+            auto Frame = std::make_shared<SimpleFrame>(mCurrentFrame);
+            current_object2d->frames_list.emplace_back(Frame);
+            tmp.emplace_back(current_object2d);
+        }
+    }
+
+    object2DMap = tmp;
+    // for (auto &obj : object2DMap)
+    // {
+    //     std::cout << obj->id << ", ";
+    // }
+    // std::cout << std::endl;
+
+    // std::cout << "[DEBUG] : track_anchors.size() is " << track_anchors.size() << std::endl;
+    // std::cout << "[DEBUG] : object2DMap.size() is " << object2DMap.size() << std::endl;
+
+    std::vector<std::shared_ptr<ORB_SLAM2::Object3DInstance>> trackingObject3Ds;
+    for (auto &obj3d : object3DMap)
+    {
+        // 将3d实例投影到2d空间
+        obj3d->TrackingObject3D(mCurrentFrame);
+        // 不在视野范围内进行下一轮
+        if (!obj3d->object2D->anchor->isInImageBoundary(mCurrentFrame.rgb_))
+            continue;
+        trackingObject3Ds.emplace_back(obj3d);
+    }
+
+    // KM算法进行数据关联
+    // std::cout << "[DEBUG] USE KM! " << std::endl;
+    std::vector<int> u_detection, u_track;
+
+    Object3DInstance::Association3Dto2D(object2DMap, trackingObject3Ds, u_detection, u_track);
+    // std::cout << "[DEBUG] : u_detection.size() is " << u_detection.size() << std::endl;
+    // std::cout << "[DEBUG] : u_track.size() is " << u_track.size() << std::endl;
+
+    // 遍历未检测对应的观测量，当追踪到达一定次数时候升级为3D实例
+    for (size_t i=0; i<u_detection.size(); ++i){
+        // std::cout << "[DEBUG] ID: " << u_detection[i] << std::endl;
+        auto obj2d = object2DMap[u_detection[i]];
+        if (obj2d->track_len > 3){
+            // std::cout << "[INFO] New Object3D Build!" << std::endl;
+            auto obj3d = std::make_shared<Object3DInstance>();
+            obj3d->id = obj2d->class_id;
+            obj3d->object2D = obj2d;
+            if (obj3d->BuildEllipsoid()){
+                object3DMap.emplace_back(obj3d);
+                trackingObject3Ds.emplace_back(obj3d);
+            }
+        }
+    }
+
+
+    // debug ------------------------------------------------
+    // std::cout << "[DEBUG] : trackingObject3Ds.size() is " << trackingObject3Ds.size() << std::endl;
+    {
+        cv::Mat showIMG = mCurrentFrame.rgb_.clone();
+        for (size_t i = 0; i < trackingObject3Ds.size(); ++i)
+        {
+            cv::Rect tmp = trackingObject3Ds[i]->object2D->anchor->rect;
+            cv::rectangle(showIMG, tmp, cv::Scalar(0, 255, 0), 2);
+            std::string text;
+            stringstream ss;
+            ss << trackingObject3Ds[i]->object2D->anchor->class_id;
+            ss >> text;
+            int baseLine = 0;
+            cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
+            cv::putText(showIMG, text, cv::Point(tmp.x, tmp.y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0), 1);
+        }
+
+        if (trackingObject3Ds.size() > 0)
+        {
+            stringstream ss_;
+            std::string text_;
+            ss_ << mCurrentFrame.mnId;
+            ss_ >> text_;
+            cv::imwrite("/home/chen/Datasets/tmp/" + text_ + ".png", showIMG);
+        }
+        // cv::imshow("debug", showIMG);
+        // cv::waitKey(0);
+    }
+    // std::cout << "[DEBUG INFO END] ——————————————————————————————————-" << std::endl;
 
     return nmatchesMap >= 10;
 }
@@ -2441,7 +2598,7 @@ void Tracking::UpdateLocalKeyFrames()
     }
 }
 
-bool Tracking::Relocalization()
+bool Tracking::Relocalization(int update)
 {
     // Compute Bag of Words Vector
     mCurrentFrame.ComputeBoW();
@@ -2597,7 +2754,9 @@ bool Tracking::Relocalization()
     }
     else
     {
-        mnLastRelocFrameId = mCurrentFrame.mnId;
+        if (update == 0)
+            mnLastRelocFrameId = mCurrentFrame.mnId;
+        // mnLastRelocFrameId = mCurrentFrame.mnId;
         return true;
     }
 }
@@ -2646,6 +2805,7 @@ void Tracking::Reset()
 
     mpViewer->Release();
 }
+
 
 void Tracking::ChangeCalibration(const string &strSettingPath)
 {
@@ -2733,6 +2893,10 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
     for (auto &obj : objs_2d)
     {
         // Initialize the object map need enough points.
+        // 移除人类这个动态障碍物
+        if (obj->_class_id == 0){
+            continue;
+        }
         if (obj->Obj_c_MapPonits.size() < 10)
         {
             obj->few_mappoint = true;
@@ -2762,6 +2926,8 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
         ObjectMapSingle->mCenter3D = obj->_Pos;                 // 3d centre.
         obj->mAssMapObjCenter = obj->_Pos;                      // for optimization, no used in this version.
 
+        ObjectMapSingle->mntrack_id = obj->_track_id; // object track id.
+
         // add properties of the point and save it to the object.
         for (size_t i = 0; i < obj->Obj_c_MapPonits.size(); i++)
         {
@@ -2769,6 +2935,7 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
 
             pMP->object_id = ObjectMapSingle->mnId;
             pMP->object_class = ObjectMapSingle->mnClass;
+            pMP->track_id = ObjectMapSingle->mntrack_id;
             pMP->object_id_vector.insert(make_pair(ObjectMapSingle->mnId, 1)); // the point is first observed by the object.
 
             if (ObjectMapSingle->mbFirstObserve == true)
@@ -2785,10 +2952,8 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
 
         // save this 2d object to current frame (associates with a 3d object in the map).
         mCurrentFrame.mvObjectFrame.push_back(obj);
-        //mCurrentFrame.mvLastObjectFrame.push_back(obj);
+        mCurrentFrame.mvLastObjectFrame.push_back(obj);
         //mCurrentFrame.mvLastLastObjectFrame.push_back(obj);
-
-        // todo: save to key frame.
 
         // updata map.
         ObjectMapSingle->ComputeMeanAndStandard();
@@ -2921,5 +3086,166 @@ cv::Mat Tracking::DrawQuadricProject(cv::Mat &im,
 
     return im;
 } // DrawQuadricProject() END  -----------------------------------------------------------------------------------------------------
+
+void Tracking::LightTrack()
+{
+    // Get Map Mutex -> Map cannot be changed
+    unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+    bool useMotionModel = true; // set true
+
+    if (mState == NOT_INITIALIZED || mState == NO_IMAGES_YET)
+    {
+        cout << "Light Tracking not working because Tracking is not initialized..." << endl;
+        return;
+    }
+    else
+    {
+        // System is initialized. Track Frame.
+        bool bOK;
+        {
+            // Localization Mode:
+            if (mState == LOST)
+            {
+                bOK = Relocalization(1);
+            }
+            else
+            {
+                if (!mbVO)
+                {
+                    // In last frame we tracked enough MapPoints in the map
+                    if (!mVelocity.empty() && useMotionModel)
+                    {
+                        bool _bOK = false;
+                        bOK = LightTrackWithMotionModel(_bOK); // TODO: check out!!!
+                    }
+                    else
+                    {
+                        bOK = TrackReferenceKeyFrame();
+                    }
+                }
+                else
+                {
+                    // In last frame we tracked mainly "visual odometry" points.
+
+                    // We compute two camera poses, one from motion model and one doing relocalization.
+                    // If relocalization is sucessfull we choose that solution, otherwise we retain
+                    // the "visual odometry" solution.
+
+                    bool bOKMM = false;
+                    bool bOKReloc = false;
+                    vector<MapPoint *> vpMPsMM;
+                    vector<bool> vbOutMM;
+                    cv::Mat TcwMM;
+                    bool lightTracking = false;
+                    bool bVO = false;
+                    if (!mVelocity.empty() && useMotionModel)
+                    {
+                        lightTracking = true;
+                        bOKMM = LightTrackWithMotionModel(bVO); // TODO: check out!!
+                        vpMPsMM = mCurrentFrame.mvpMapPoints;
+                        vbOutMM = mCurrentFrame.mvbOutlier;
+                        TcwMM = mCurrentFrame.mTcw.clone();
+                    }
+                    bOKReloc = Relocalization(1);
+
+                    if (bOKMM && !bOKReloc)
+                    {
+                        mCurrentFrame.SetPose(TcwMM);
+                        mCurrentFrame.mvpMapPoints = vpMPsMM;
+                        mCurrentFrame.mvbOutlier = vbOutMM;
+
+                        if ((lightTracking && bVO) || (!lightTracking && mbVO))
+                        {
+                            for (int i = 0; i < mCurrentFrame.N; i++)
+                            {
+                                if (mCurrentFrame.mvpMapPoints[i] && !mCurrentFrame.mvbOutlier[i])
+                                {
+                                    mCurrentFrame.mvpMapPoints[i]->IncreaseFound();
+                                }
+                            }
+                        }
+                    }
+
+                    bOK = bOKReloc || bOKMM;
+                }
+            }
+        }
+
+        mCurrentFrame.mpReferenceKF = mpReferenceKF;
+
+        if (!bOK)
+        {
+            if (mpMap->KeyFramesInMap() <= 5)
+            {
+                cout << "Light Tracking not working..." << endl;
+                return;
+            }
+        }
+
+        if (!mCurrentFrame.mpReferenceKF)
+            mCurrentFrame.mpReferenceKF = mpReferenceKF;
+    }
+}
+bool Tracking::LightTrackWithMotionModel(bool &bVO)
+{
+    ORBmatcher matcher(0.9, true);
+
+    // Update last frame pose according to its reference keyframe
+    // Create "visual odometry" points if in Localization Mode
+    Frame lastFrameBU = mLastFrame;
+    list<MapPoint *> lpTemporalPointsBU = mlpTemporalPoints;
+    UpdateLastFrame(); // TODO: check out!
+
+    mCurrentFrame.SetPose(mVelocity * mLastFrame.mTcw);
+
+    fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint *>(NULL)); // TODO:Checkout
+
+    // Project points seen in previous frame
+    int th;
+    if (mSensor != System::STEREO)
+        th = 15;
+    else
+        th = 7;
+    int nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, th, mSensor == System::MONOCULAR); // TODO:Checkout
+
+    // If few matches, uses a wider window search
+    if (nmatches < 20)
+    {
+        fill(mCurrentFrame.mvpMapPoints.begin(), mCurrentFrame.mvpMapPoints.end(), static_cast<MapPoint *>(NULL)); // TODO:Checkout
+        nmatches = matcher.SearchByProjection(mCurrentFrame, mLastFrame, 2 * th, mSensor == System::MONOCULAR);    // TODO:Checkout
+    }
+
+    if (nmatches < 20)
+        return false;
+
+    // Optimize frame pose with all matches
+    Optimizer::PoseOptimization(&mCurrentFrame);
+
+    // Discard outliers
+    int nmatchesMap = 0;
+    for (int i = 0; i < mCurrentFrame.N; i++)
+    {
+        if (mCurrentFrame.mvpMapPoints[i])
+        {
+            if (mCurrentFrame.mvbOutlier[i])
+            {
+                MapPoint *pMP = mCurrentFrame.mvpMapPoints[i];
+
+                mCurrentFrame.mvpMapPoints[i] = static_cast<MapPoint *>(NULL);
+                mCurrentFrame.mvbOutlier[i] = false;
+                pMP->mbTrackInView = false;
+                pMP->mnLastFrameSeen = mCurrentFrame.mnId;
+                nmatches--;
+            }
+            else if (mCurrentFrame.mvpMapPoints[i]->Observations() > 0)
+                nmatchesMap++;
+        }
+    }
+    mLastFrame = lastFrameBU;
+    mlpTemporalPoints = lpTemporalPointsBU;
+
+    bVO = nmatchesMap < 10;
+    return nmatches > 20;
+}
 
 } // namespace ORB_SLAM2

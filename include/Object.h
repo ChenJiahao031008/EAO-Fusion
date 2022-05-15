@@ -36,6 +36,7 @@ namespace ORB_SLAM2
         public:
             int _class_id;      // class id.
             float mScore;       // Probability.
+            int _track_id;      // track id
 
             float left;         // size.
             float right;
@@ -160,6 +161,7 @@ namespace ORB_SLAM2
             cv::Rect mLastLastRect;
             cv::Rect mPredictRect;
             cv::Rect mRectProject;
+            int mntrack_id;
             int mnId;
             int mnClass;
             int mnConfidence;

@@ -50,6 +50,7 @@ KeyFrame::KeyFrame(Frame &F, Map *pMap, KeyFrameDatabase *pKFDB):
     mnId=nNextId++;
 
     mnMappingId = 0;
+    F.mIsKeyFrame = true;
 
     mGrid.resize(mnGridCols);
     for(int i=0; i<mnGridCols;i++)

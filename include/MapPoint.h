@@ -2,7 +2,7 @@
 * This file is part of ORB-SLAM2.
 * Copyright (C) 2014-2016 Raúl Mur-Artal <raulmur at unizar dot es> (University of Zaragoza)
 * For more information see <https://github.com/raulmur/ORB_SLAM2>
-* 
+*
 * Modification: EAO-SLAM
 * Version: 1.0
 * Created: 07/18/2019
@@ -52,7 +52,7 @@ public:
     void SetBadFlag();
     bool isBad();
 
-    void Replace(MapPoint* pMP);    
+    void Replace(MapPoint* pMP);
     MapPoint* GetReplaced();
 
     void IncreaseVisible(int n=1);
@@ -80,15 +80,16 @@ public:
     int nObs;
 
     // NOTE [EAO-SLAM]
-    bool have_feature;          
+    bool have_feature;
     cv::KeyPoint feature;
-    bool object_view = false;               
-    int object_id;                          
-    int object_class;                       
-    std::map<int,int> object_id_vector;     
+    bool object_view = false;
+    int object_id;
+    int object_class;
+    std::map<int,int> object_id_vector;
     set<int> frame_id;
     bool First_obj_view;
     bool out_point;
+    int track_id; // track id
 
     // Variables used by the tracking
     float mTrackProjX;
@@ -107,14 +108,14 @@ public:
     // Variables used by loop closing
     long unsigned int mnLoopPointForKF;
     long unsigned int mnCorrectedByKF;
-    long unsigned int mnCorrectedReference;    
+    long unsigned int mnCorrectedReference;
     cv::Mat mPosGBA;
     long unsigned int mnBAGlobalForKF;
 
 
     static std::mutex mGlobalMutex;
 
-protected:    
+protected:
 
      // Position in absolute coordinates
      cv::Mat mWorldPos;

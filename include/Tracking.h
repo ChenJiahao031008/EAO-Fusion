@@ -33,11 +33,10 @@
 #include "Initializer.h"
 #include "MapDrawer.h"
 #include "System.h"
+#include "Converter.h"
+#include "Geometry.h"
 
 #include <mutex>
-
-// #include "YOLOv3SE.h"
-#include "Converter.h"
 
 // 深度滤波
 #include "JBF.h"
@@ -46,7 +45,9 @@
 
 // YOLOX
 #include "Global.h"
-// #include "YOLOX.h"
+
+// lst-ot
+#include "ObjectInstance.h"
 
 namespace ORB_SLAM2
 {
@@ -59,6 +60,8 @@ class LoopClosing;
 class System;
 // class YOLOX;
 class BYTETrackerImpl;
+class Object2DInstance;
+class Object3DInstance;
 
 class Tracking
 {
@@ -112,6 +115,10 @@ public:
                                 int nLatitudeNum = 7,
                                 int nLongitudeNum = 6);
 
+    // dynaslam
+    bool LightTrackWithMotionModel(bool &bVO);
+    void LightTrack();
+
 public:
 
     // Tracking states
@@ -131,6 +138,12 @@ public:
 
     // demo.
     string mflag;
+    int refine_flag;
+    // dynaslam:
+    DynaSLAM::Geometry mGeometry;
+    // YOLOX* Semanticer;
+    BYTETrackerImpl *ByteTracker;
+
 
     // Current Frame
     Frame mCurrentFrame;
@@ -172,6 +185,13 @@ public:
     int miConstraintType = 0;
     bool mbSemanticOnline;
 
+    // lst-ot
+    std::vector<BYTE_TRACK::STrack> track_anchors;
+
+    // add obj2d
+    std::vector<std::shared_ptr<Object2DInstance>> object2DMap;
+    std::vector<std::shared_ptr<Object3DInstance>> object3DMap;
+
 protected:
 
     // Main tracking function. It is independent of the input sensor.
@@ -189,7 +209,7 @@ protected:
     void UpdateLastFrame();
     bool TrackWithMotionModel();
 
-    bool Relocalization();
+    bool Relocalization(int update=0);
 
     void UpdateLocalMap();
     void UpdateLocalPoints();
@@ -210,10 +230,6 @@ protected:
     //Other Thread Pointers
     LocalMapping* mpLocalMapper;
     LoopClosing* mpLoopClosing;
-
-    // NOTE
-    // YOLOX* Semanticer;
-    BYTETrackerImpl* ByteTracker;
 
     //ORB
     ORBextractor* mpORBextractorLeft, *mpORBextractorRight;

@@ -88,7 +88,7 @@ cv::Mat FrameDrawer::DrawFrame()
         mnTracked=0;
         mnTrackedVO=0;
         const float r = 5;
-        for(int i=0;i<N;i++)
+        for(int i=0; i<N; i++)
         {
             if(vbVO[i] || vbMap[i])
             {
@@ -116,7 +116,7 @@ cv::Mat FrameDrawer::DrawFrame()
                             if((vCurrentKeys[i].pt.x > left)&&(vCurrentKeys[i].pt.x < right)
                                 &&(vCurrentKeys[i].pt.y > top)&&(vCurrentKeys[i].pt.y < bottom))
                             {
-                                cv::circle(im, vCurrentKeys[i].pt, 2, colors[box.m_class%4], -1);
+                                cv::circle(im, vCurrentKeys[i].pt, 3, colors[box.m_class%4], -1);
 
                                 bInBox = true;
                                 break;
@@ -127,15 +127,15 @@ cv::Mat FrameDrawer::DrawFrame()
                     if(bInBox == false)
                     {
                         // cv::rectangle(im,pt1,pt2,cv::Scalar(0,255,0));
-                        cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(255,0,255),-1);
+                        cv::circle(im,vCurrentKeys[i].pt,4,cv::Scalar(255,0,255),-1);
                     }
 
                     mnTracked++;
                 }
                 else // This is match to a "visual odometry" MapPoint created in the last frame
                 {
-                    cv::rectangle(im,pt1,pt2,cv::Scalar(255,0,0));
-                    cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(255,0,0),-1);
+                    cv::rectangle(im,pt1,pt2,cv::Scalar(0,0,0));
+                    cv::circle(im,vCurrentKeys[i].pt,2,cv::Scalar(0,0,0),-1);
                     mnTrackedVO++;
                 }
             }

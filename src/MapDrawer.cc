@@ -587,7 +587,7 @@ void MapDrawer::DrawMapPlanesOld()
     glPointSize(mPointSize / 2);
     glBegin(GL_POINTS);
     pcl::VoxelGrid<PointT> voxel;
-    voxel.setLeafSize(0.02, 0.02, 0.02);
+    voxel.setLeafSize(0.05, 0.05, 0.05);
     for (auto pMP : vpMPs)
     {
         map<KeyFrame *, int> observations = pMP->GetObservations();

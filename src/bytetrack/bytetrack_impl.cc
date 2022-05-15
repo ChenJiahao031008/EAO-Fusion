@@ -442,6 +442,7 @@ BYTE_TRACK::Object BYTETrackerImpl::STrack2Object(BYTE_TRACK::STrack &strack)
     obj.rect = rect;
     obj.idx = strack.track_id;
     obj.nFrame = strack.frame_id;
+    obj.track_id = strack.track_id;
     return obj;
 }
 

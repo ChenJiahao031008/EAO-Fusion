@@ -31,7 +31,7 @@ if(NOT OpenCV_FOUND)
     endif()
 endif()
 message(STATUS "Using opencv version ${OpenCV_VERSION}")
-find_package(Eigen3 3.2.7 REQUIRED)
+find_package(Eigen3 3.2.1 REQUIRED)
 find_package(Pangolin REQUIRED)
 
 # glog
@@ -58,7 +58,7 @@ include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIR})
 
 # Find PCL
-find_package( PCL 1.9.0 REQUIRED)
+find_package( PCL 1.7.0 REQUIRED)
 add_definitions( ${PCL_DEFINITIONS} )
 link_directories( ${PCL_LIBRARY_DIRS} )
 
@@ -130,6 +130,8 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../include/PEAC
     ${PROJECT_SOURCE_DIR}/../src/DepthFilter
     ${PROJECT_SOURCE_DIR}/../src/bytetrack
+    ${PROJECT_SOURCE_DIR}/../src/ObjectTrack
+    ${PROJECT_SOURCE_DIR}/../src/Tools
     # ${PROJECT_SOURCE_DIR}/../src/YOLOX
 )
 
@@ -178,6 +180,12 @@ add_library(${PROJECT_NAME}_lib SHARED
     ../src/bytetrack/lapjv.cc
     ../src/bytetrack/STrack.cc
     ../src/bytetrack/utils.cc
+    # object track
+    ../src/ObjectTrack/ObjectInstance.cc
+    # tools
+    ../src/Tools/Tools.cc
+    # dynaslam
+    ../src/Geometry.cc
 )
 
 # add_subdirectory(../src/bytetrack ../src/bytetrack/build.out)

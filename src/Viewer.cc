@@ -191,7 +191,7 @@ void Viewer::Run()
         if(!im.empty())
         {
             cv::Mat resizeimg;
-            cv::resize(im, resizeimg, cv::Size(640*0.7, 480*0.7), 0, 0, cv::INTER_CUBIC);
+            cv::resize(im, resizeimg, cv::Size(640, 480), 0, 0, cv::INTER_CUBIC);
             cv::imshow("Point, Line and Object Detection", resizeimg);
         }
 
