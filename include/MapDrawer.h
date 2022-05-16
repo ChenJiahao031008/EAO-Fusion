@@ -59,6 +59,12 @@ public:
     void DrawMapPlanes();
     void DrawMapPlanesOld();
 
+
+    void CirclePoints(int x, int y, int z, int x0, int y0);
+
+    void BresenhamCircle(int x0, int y0, int z0, int r);
+    void MidpointCircle_pro(int x0, int y0, int z0, int r);
+
 private:
     float mKeyFrameSize;
     float mKeyFrameLineWidth;
@@ -66,6 +72,8 @@ private:
     float mPointSize;
     float mCameraSize;
     float mCameraLineWidth;
+
+    cv::Mat T_tmp;
 
     cv::Mat mCameraPose;
 

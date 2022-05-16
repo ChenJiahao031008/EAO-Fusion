@@ -215,6 +215,7 @@ public:
     static float cy;
     static float invfx;
     static float invfy;
+    float mDepthMapFactor;
     cv::Mat mDistCoef;
 
     // pass img to keyframe, using to semidense create

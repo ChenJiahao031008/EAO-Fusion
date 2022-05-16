@@ -419,6 +419,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
                                   mImGray,
                                   boxes_online);
         }
+        mCurrentFrame.mDepthMapFactor = mDepthMapFactor;
 
         // save to current frame.
         // for (vector<BoxSE>::iterator iter = boxes_online.begin(); iter != boxes_online.end();){
@@ -513,6 +514,7 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
                               boxes_offline);
 
         // mCurrentFrame.boxes = boxes_offline;
+        mCurrentFrame.mDepthMapFactor = mDepthMapFactor;
 
         // std::vector<BoxSE> --> Eigen::MatrixXd.
         int i = 0;

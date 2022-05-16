@@ -156,6 +156,10 @@ namespace ORB_SLAM2
     class Object_Map
     {
         public:
+            typedef pcl::PointXYZRGB PointT;
+            typedef pcl::PointCloud<PointT> PointCloud;
+
+        public:
             std::vector<Object_2D*> mObjectFrame;
             cv::Rect mLastRect;
             cv::Rect mLastLastRect;
@@ -208,6 +212,8 @@ namespace ORB_SLAM2
 
             // void UpdateObjScale(Eigen::Vector3d Scale);    // for optimization.
             void UpdateObjPose();      // update object pose.
+
+            Object_Map::PointCloud getPointCloudInRect(cv::Mat &depth, const Eigen::VectorXd &detect, Frame &frame, double range);
 
         protected:
             std::mutex mMutexMapPoints;

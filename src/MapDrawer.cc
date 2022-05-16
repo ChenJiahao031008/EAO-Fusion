@@ -230,6 +230,128 @@ void MapDrawer::DrawKeyFrames(const bool bDrawKF, const bool bDrawGraph)
     }
 }
 
+//辅助画圆算法
+void MapDrawer::CirclePoints(int x, int y, int z, int x0, int y0)
+{
+    GLfloat x_plus_x0 = (x + x0) / 100.0;
+    GLfloat x_plus_y0 = (x + y0) / 100.0;
+    GLfloat y_plus_y0 = (y + y0) / 100.0;
+    GLfloat y_plus_x0 = (y + x0) / 100.0;
+    GLfloat z_ = z/100.0;
+
+    glVertex3f( x_plus_x0, y_plus_x0, z_);
+    glVertex3f( y_plus_y0,  x_plus_y0, z_);
+    glVertex3f(-x_plus_x0, y_plus_x0, z_);
+    glVertex3f( y_plus_y0, -x_plus_y0, z_);
+    glVertex3f( x_plus_x0, -y_plus_x0, z_);
+    glVertex3f(-y_plus_y0,  x_plus_y0, z_);
+    glVertex3f(-x_plus_x0, -y_plus_x0, z_);
+    glVertex3f(-y_plus_y0, -x_plus_y0, z_);
+
+    // glVertex3i((x + x0), (y + y0), z);
+    // glVertex3i((y + x0), (x + y0), z);
+    // glVertex3i(-(x + x0), (y + y0), z);
+    // glVertex3i((y + x0), -(x + y0), z);
+    // glVertex3i((x + x0), -(y + y0), z);
+    // glVertex3i(-(y + x0), (x + y0), z);
+    // glVertex3i(-(x + x0), -(y + y0), z);
+    // glVertex3i(-(y + x0), -(x + y0), z);
+}
+
+void MapDrawer::MidpointCircle_pro(int x0, int y0, int z0, int r)
+{
+    glClear(GL_COLOR_BUFFER_BIT); //清除窗口显示内容
+
+    int x = 0, y = r;
+    int d = 3 - 2 * r;
+
+    CirclePoints(x, y, z0, x0, y0);
+    while (x <= y)
+    {
+        CirclePoints(x, y, z0, x0, y0);
+        x++;
+
+        if (d < 0)
+            d += 4 * x + 6;
+        else
+        {
+            d += 4 * (x - y) + 10;
+            y--;
+        }
+        glBegin(GL_POINTS);
+    }
+    glEnd();
+    glFlush();
+}
+
+void MapDrawer::BresenhamCircle(int x0, int y0, int z0, int r)
+{
+
+    int x = 0, y = r;
+    int delta, delta1, delta2;
+    int direction;       //表明选取的点，1为H,2为D，3为V
+    delta = 2 * (1 - r); //初始值
+    int Limit = 0;
+
+    // glVertex3i(x0/10.0, y0/10.0, z0/10.0);
+
+    while (y >= Limit)
+    {
+        glBegin(GL_POINTS);
+        x = x - x0 > r ? r : x;
+        x = x0 - x > r ? -r : x;
+        y = y - y0 > r ? r : y;
+        y = y0 - y > r ? -r : y;
+        CirclePoints(x, y, z0, x0, y0);
+        if (delta < 0)
+        {
+            delta1 = 2 * (delta + y) - 1;
+            if (delta1 < 0)
+            { //取H点
+                direction = 1;
+            }
+            else
+                direction = 2; //取D点
+        }
+        else if (delta > 0)
+        {
+            delta2 = 2 * (delta - x) - 1;
+            if (delta2 < 0)
+            {
+                direction = 2; //取D点
+            }
+            else
+                direction = 3; //取V点
+        }
+        else
+            direction = 2; //取D点
+
+        switch (direction)
+        {
+        case 1:
+            x++;
+            delta += 2 * x + 1;
+            break;
+        case 2:
+            x++;
+            y--;
+            delta += 2 * x - 2 * y + 1;
+            break;
+        case 3:
+            y--;
+            delta += -2 * y + 1;
+            break;
+        }
+        // glBegin(GL_POINTS);
+    }
+
+    glEnd();
+    glFlush();
+}
+
+
+
+
 // BRIEF [EAO-SLAM] draw objects.
 void MapDrawer::DrawObject(const bool QuadricObj,
                            const string &flag)
@@ -258,9 +380,46 @@ void MapDrawer::DrawObject(const bool QuadricObj,
         glLineWidth(2);
 
         // *************************************
-        //    STEP 1. [EAO-SLAM] Draw cubes.   *
+        //    STEP 1. [EAO-SLAM] Draw cylinder.   *
         // *************************************
-        // draw cubes END ----------------------------------------------------------------------------
+        if(1){
+            cv::Mat Twobj_t = Converter::toCvMat(Obj->mCuboid3D.pose).t();
+            T_tmp = Twobj_t.clone();
+            glPushMatrix();
+            glMultMatrixf(Twobj_t.ptr<GLfloat>(0));
+            glColor3f(1.0, 0, 0.0);
+
+            glPointSize(3);
+
+            // half axial length.
+            float lenth = Obj->mCuboid3D.lenth / 2;
+            float width = Obj->mCuboid3D.width / 2;
+            float height = Obj->mCuboid3D.height / 2;
+            float r = std::max(width, lenth);
+            BresenhamCircle(0, 0, -height * 100, r * 100);
+            BresenhamCircle(0, 0,  height * 100, r * 100);
+
+            // MidpointCircle_pro(0, 0, -height * 100, r * 100);
+            // MidpointCircle_pro(0, 0,  height * 100, r * 100);
+
+            glLineWidth(3);
+            glBegin(GL_LINES);
+            glVertex3f(0, -r, -height);
+            glVertex3f(0, -r,  height);
+
+            glVertex3f(0, r, -height);
+            glVertex3f(0, r,  height);
+
+            glVertex3f(r, 0, -height);
+            glVertex3f(r, 0,  height);
+
+            glVertex3f(-r, 0, -height);
+            glVertex3f(-r, 0,  height);
+
+            glEnd();
+            glPopMatrix();
+        }
+        // draw cylinder END ----------------------------------------------------------------------------
 
         // ****************************************
         //    STEP 2. [EAO-SLAM] Draw quadrics.   *
@@ -305,7 +464,7 @@ void MapDrawer::DrawObject(const bool QuadricObj,
             Twq.at<float>(3, 3) = 1;
 
             // create a quadric.
-             //初始化二次曲面并创建一个指向二次曲面的指针
+            //初始化二次曲面并创建一个指向二次曲面的指针
             GLUquadricObj *pObj = gluNewQuadric();
             cv::Mat Twq_t = Twq.t();
 

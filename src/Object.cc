@@ -774,6 +774,12 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
             return;
         }
 
+        // 移除人类这个动态障碍物
+        if (this->mBox.m_class == 0)
+        {
+            return;
+        }
+
         // create a 3d object in the map.
         Object_Map *ObjectMapSingle = new Object_Map;
         ObjectMapSingle->mObjectFrame.push_back(this);
@@ -1702,6 +1708,43 @@ bool Object_Map::DataAssociateUpdate(Object_2D *ObjectFrame,
     return true;
 } // Object_Map::DataAssociateUpdate() END ---------------------------------------------
 
+Object_Map::PointCloud Object_Map::getPointCloudInRect(cv::Mat &depth, const Eigen::VectorXd &detect, Frame &frame, double range)
+{
+    cv::Mat rgb = frame.rgb_.clone();
+    // detect : x1 y1 x2 y2
+    Object_Map::PointCloud cloud;
+
+    // scan the points in the bounding box
+    int x1 = int(detect(0));
+    int y1 = int(detect(1));
+    int x2 = int(detect(2));
+    int y2 = int(detect(3));
+
+    for (int y = y1; y < y2; y = y + 3)
+    {
+        for (int x = x1; x < x2; x = x + 3)
+        {
+            ushort *ptd = depth.ptr<ushort>(y);
+            ushort d = ptd[x];
+
+            Object_Map::PointT p;
+            p.z = d / frame.mDepthMapFactor;
+            if (p.z <= 0.1 || p.z > range) // if the depth is valid
+                continue;
+
+            p.x = (x - frame.cx) * p.z / frame.fx;
+            p.y = (y - frame.cy) * p.z / frame.fy;
+
+            p.b = rgb.ptr<uchar>(y)[x * 3];
+            p.g = rgb.ptr<uchar>(y)[x * 3 + 1];
+            p.r = rgb.ptr<uchar>(y)[x * 3 + 2];
+
+            cloud.push_back(p);
+        }
+    }
+
+    return cloud;
+}
 
 // BRIEF projecting points to the image, constructing a bounding box.
 void Object_Map::ComputeProjectRectFrame(cv::Mat &image, Frame &mCurrentFrame)
@@ -1710,22 +1753,28 @@ void Object_Map::ComputeProjectRectFrame(cv::Mat &image, Frame &mCurrentFrame)
     const cv::Mat tcw = mCurrentFrame.mTcw.rowRange(0, 3).col(3);
     vector<float> x_pt;
     vector<float> y_pt;
-    for (int j = 0; j < mvpMapObjectMappoints.size(); j++)
-    {
-        MapPoint *pMP = mvpMapObjectMappoints[j];
-        cv::Mat PointPosWorld = pMP->GetWorldPos();
 
-        cv::Mat PointPosCamera = Rcw * PointPosWorld + tcw;
+    // TODO: rgbd模式下，目标框的生成与获取
+    int rgbd_flag = false;
+    if (rgbd_flag == false){
+        for (int j = 0; j < mvpMapObjectMappoints.size(); j++)
+        {
+            MapPoint *pMP = mvpMapObjectMappoints[j];
+            cv::Mat PointPosWorld = pMP->GetWorldPos();
 
-        const float xc = PointPosCamera.at<float>(0);
-        const float yc = PointPosCamera.at<float>(1);
-        const float invzc = 1.0 / PointPosCamera.at<float>(2);
+            cv::Mat PointPosCamera = Rcw * PointPosWorld + tcw;
 
-        float u = mCurrentFrame.fx * xc * invzc + mCurrentFrame.cx;
-        float v = mCurrentFrame.fy * yc * invzc + mCurrentFrame.cy;
+            const float xc = PointPosCamera.at<float>(0);
+            const float yc = PointPosCamera.at<float>(1);
+            const float invzc = 1.0 / PointPosCamera.at<float>(2);
 
-        x_pt.push_back(u);
-        y_pt.push_back(v);
+            float u = mCurrentFrame.fx * xc * invzc + mCurrentFrame.cx;
+            float v = mCurrentFrame.fy * yc * invzc + mCurrentFrame.cy;
+
+            x_pt.push_back(u);
+            y_pt.push_back(v);
+        }
+    }else{
 
     }
 
