@@ -5,12 +5,12 @@ IF(NOT CMAKE_BUILD_TYPE)
   SET(CMAKE_BUILD_TYPE release)
 ENDIF()
 
-add_compile_options(-std=c++14)
+add_compile_options(-std=c++17)
 
 # yolox
 ADD_DEFINITIONS("-w -pthread")
 option(CUDA_USE_STATIC_CUDA_RUNTIME OFF)
-set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD 17)
 
 MESSAGE("Build type: " ${CMAKE_BUILD_TYPE})
 
@@ -79,7 +79,7 @@ link_directories(/home/chen/cuda/lib64)
 include_directories(/home/chen/DeepLearning/settings/TensorRT-7.2.1.6/include)
 link_directories(/home/chen/DeepLearning/settings/TensorRT-7.2.1.6/lib)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -Wall -Wfatal-errors")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17 -Wall -Wfatal-errors")
 
 
 find_package(

@@ -1,14 +1,17 @@
 <launch>
     <!-- <arg name="bag_filename" default="/home/chen/ros_active_SLAM/longloop_2022-03-23-15-56-05.bag"/> -->
     <arg name="bag_filename" default="/home/chen/Datasets/TUM/freiburg2_desk.bag"/>
+    <!-- <arg name="bag_filename" default="/media/chen/workspace/北工大工作/数据集/office1-1/office1.bag"/> -->
+
+    <!-- <arg name="bag_filename" default="/media/chen/demo/Dataset/RGB-D-Dataset-7-Scenes/office/seq-04/seq-04.bag"/> -->
     <!-- <arg name="bag_filename" default="/home/chen/lidar_camera/rosbag/rgbd_dataset_freiburg3_walking_xyz.bag"/> -->
     <!-- <arg name="bag_filename" default="/home/chen/桌面/工具箱/tools/RGBD2BAG/rgbdv214.bag"/> -->
 
     <node pkg="object_slam"  type="ros_rgbd"  name="ros_rgbd"  output="screen">
         <param name="sensor" value="RGBD"/>
         <param name="online" value="true" type="bool"/>
-        <param name="rosbag" value="false" type="bool"/>
-        <!-- <param name="rosbag" value="true" type="bool"/> -->
+        <!-- <param name="rosbag" value="false" type="bool"/> -->
+        <param name="rosbag" value="true" type="bool"/>
         <!-- <param name="gravity_aixs" value="2" type="int"/> -->
         <param name="gravity_aixs" value="2" type="int"/>
     </node>

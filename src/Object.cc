@@ -178,7 +178,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
     int IouMaxObjID = -1;               // temporary variable.
     float IouThreshold = 0.5;           // IoU threshold.
 
-// #define TRACK
+#define TRACK
 #ifdef TRACK
     // ****************************************************************************
     //         STEP 0. Tracker data association. combine iou to get proper score              *
@@ -241,7 +241,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
             }
             else if (last_track_id == current_track_id)
             {
-                track_score = 0.6 * mScore + 0.4 * Iou;
+                track_score = 0.75 * mScore + 0.25 * Iou;
                 if (track_score >= (TrackThreshhold - 0.2))
                 {
                     IouMax = Iou;

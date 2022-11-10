@@ -362,10 +362,9 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             auto objInfo = BYTETrackerImpl::STrack2Object(strack);
             if (objInfo.prob < 0.5)
                 continue;
-            // 0: person; 24: handbag; 28: suitcase; 39: bottle; 56: chair;
-            // 57: couch; 58:potted plant; 59: bed; 60: dining table; 62: tv;
-            // 63: laptop; 66: keyboard; 67: phone; 73: book;
-            if (objInfo.label != 0 && objInfo.label != 24 && objInfo.label != 28 && objInfo.label != 39 && objInfo.label != 56 && objInfo.label != 57  && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 62 && objInfo.label != 63 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73)
+            // 0: person; 26: handbag; 28: suitcase; 32: sports ball; 39: bottle; 40: wine glass; 41: cup; 56: chair; 57: couch; 58: potted plant; 59: bed; 60: dining table; 62: tv; 63: laptop; 64:mouse; 65: remote; 66: keyboard; 67: cell phone; 73: book; 74: clock; 75: vase;
+            if (
+            objInfo.label != 0  && objInfo.label != 26 && objInfo.label != 28 && objInfo.label != 32 && objInfo.label != 39 && objInfo.label != 40 && objInfo.label != 41 && objInfo.label != 56 && objInfo.label != 57 && objInfo.label != 58 && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 63 && objInfo.label != 64 &&objInfo.label != 65 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73 && objInfo.label != 74 && objInfo.label != 75)
                 continue;
             BoxSE box;
             box.m_class = objInfo.label;

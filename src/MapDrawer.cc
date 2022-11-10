@@ -350,8 +350,6 @@ void MapDrawer::BresenhamCircle(int x0, int y0, int z0, int r)
 }
 
 
-
-
 // BRIEF [EAO-SLAM] draw objects.
 void MapDrawer::DrawObject(const bool QuadricObj,
                            const string &flag)
@@ -382,49 +380,77 @@ void MapDrawer::DrawObject(const bool QuadricObj,
         // *************************************
         //    STEP 1. [EAO-SLAM] Draw cylinder.   *
         // *************************************
-        if(1){
-            cv::Mat Twobj_t = Converter::toCvMat(Obj->mCuboid3D.pose).t();
-            T_tmp = Twobj_t.clone();
-            glPushMatrix();
-            glMultMatrixf(Twobj_t.ptr<GLfloat>(0));
-            glColor3f(1.0, 0, 0.0);
+        // if (QuadricObj && (
+        //     Obj->mnClass == 62 || Obj->mnClass == 56 || Obj->mnClass == 58 || Obj->mnClass == 59 || Obj->mnClass == 60))
+        // {
+        //     cv::Mat Twobj_t = Converter::toCvMat(Obj->mCuboid3D.pose).t();
+        //     T_tmp = Twobj_t.clone();
+        //     glPushMatrix();
+        //     glMultMatrixf(Twobj_t.ptr<GLfloat>(0));
+        //     glColor3f(1.0, 0, 0.0);
 
-            glPointSize(3);
+        //     glPointSize(3);
 
-            // half axial length.
-            float lenth = Obj->mCuboid3D.lenth / 2;
-            float width = Obj->mCuboid3D.width / 2;
-            float height = Obj->mCuboid3D.height / 2;
-            float r = std::max(width, lenth);
-            BresenhamCircle(0, 0, -height * 100, r * 100);
-            BresenhamCircle(0, 0,  height * 100, r * 100);
+        //     // half axial length.
+        //     float lenth = Obj->mCuboid3D.lenth / 2;
+        //     float width = Obj->mCuboid3D.width / 2;
+        //     float height = Obj->mCuboid3D.height / 2;
+        //     float r = std::max(width, lenth);
+        //     BresenhamCircle(0, 0, -height * 100, r * 100);
+        //     BresenhamCircle(0, 0,  height * 100, r * 100);
 
-            // MidpointCircle_pro(0, 0, -height * 100, r * 100);
-            // MidpointCircle_pro(0, 0,  height * 100, r * 100);
+        //     // MidpointCircle_pro(0, 0, -height * 100, r * 100);
+        //     // MidpointCircle_pro(0, 0,  height * 100, r * 100);
 
-            glLineWidth(3);
-            glBegin(GL_LINES);
-            glVertex3f(0, -r, -height);
-            glVertex3f(0, -r,  height);
+        //     glLineWidth(3);
+        //     glBegin(GL_LINES);
+        //     glVertex3f(0, -r, -height);
+        //     glVertex3f(0, -r,  height);
 
-            glVertex3f(0, r, -height);
-            glVertex3f(0, r,  height);
+        //     glVertex3f(0, r, -height);
+        //     glVertex3f(0, r,  height);
 
-            glVertex3f(r, 0, -height);
-            glVertex3f(r, 0,  height);
+        //     glVertex3f(r, 0, -height);
+        //     glVertex3f(r, 0,  height);
 
-            glVertex3f(-r, 0, -height);
-            glVertex3f(-r, 0,  height);
+        //     glVertex3f(-r, 0, -height);
+        //     glVertex3f(-r, 0,  height);
 
-            glEnd();
-            glPopMatrix();
-        }
-        // draw cylinder END ----------------------------------------------------------------------------
+        //     glEnd();
+        //     glPopMatrix();
 
-        // ****************************************
-        //    STEP 2. [EAO-SLAM] Draw quadrics.   *
-        // ****************************************
-        if(QuadricObj)
+        //     // quadrcis pose.
+        //     cv::Mat Twq = cv::Mat::zeros(4, 4, CV_32F);
+        //     auto pose = Converter::toCvMat(Obj->mCuboid3D.pose);
+        //     Twq.at<float>(0, 0) = 1;
+        //     Twq.at<float>(0, 1) = 0;
+        //     Twq.at<float>(0, 2) = 0;
+        //     Twq.at<float>(0, 3) = Obj->mCuboid3D.cuboidCenter[0];
+        //     Twq.at<float>(1, 0) = 0;
+        //     Twq.at<float>(1, 1) = 1;
+        //     Twq.at<float>(1, 2) = 0;
+        //     Twq.at<float>(1, 3) = Obj->mCuboid3D.cuboidCenter[1];
+        //     Twq.at<float>(2, 0) = 0;
+        //     Twq.at<float>(2, 1) = 0;
+        //     Twq.at<float>(2, 2) = 1;
+        //     Twq.at<float>(2, 3) = Obj->mCuboid3D.cuboidCenter[2];
+        //     Twq.at<float>(3, 0) = 0;
+        //     Twq.at<float>(3, 1) = 0;
+        //     Twq.at<float>(3, 2) = 0;
+        //     Twq.at<float>(3, 3) = 1;
+
+        //     // front
+        //     std::string str = class_names[Obj->mnClass];
+
+        //     // case 1
+        //     pangolin::GlText m_gltext = pangolin::GlFont::I().Text(str.c_str());
+        //     m_gltext.Draw(
+        //         (GLfloat)(Twq.at<float>(0, 3)),
+        //         (GLfloat)(Twq.at<float>(1, 3)),
+        //         (GLfloat)(Twq.at<float>(2, 3) + height / 2.0));
+        // }
+        // else
+        if (QuadricObj)
         {
             // half axial length.
             float lenth = Obj->mCuboid3D.lenth/2;
@@ -446,17 +472,34 @@ void MapDrawer::DrawObject(const bool QuadricObj,
 
             // quadrcis pose.
             cv::Mat Twq = cv::Mat::zeros(4,4,CV_32F);
-            Twq.at<float>(0, 0) = 1;
-            Twq.at<float>(0, 1) = 0;
-            Twq.at<float>(0, 2) = 0;
+            auto pose = Converter::toCvMat(Obj->mCuboid3D.pose);
+            // Twq.at<float>(0, 0) = 1;
+            // Twq.at<float>(0, 1) = 0;
+            // Twq.at<float>(0, 2) = 0;
+            // Twq.at<float>(0, 3) = Obj->mCuboid3D.cuboidCenter[0];
+            // Twq.at<float>(1, 0) = 0;
+            // Twq.at<float>(1, 1) = 1;
+            // Twq.at<float>(1, 2) = 0;
+            // Twq.at<float>(1, 3) = Obj->mCuboid3D.cuboidCenter[1];
+            // Twq.at<float>(2, 0) = 0;
+            // Twq.at<float>(2, 1) = 0;
+            // Twq.at<float>(2, 2) = 1;
+            // Twq.at<float>(2, 3) = Obj->mCuboid3D.cuboidCenter[2];
+            // Twq.at<float>(3, 0) = 0;
+            // Twq.at<float>(3, 1) = 0;
+            // Twq.at<float>(3, 2) = 0;
+            // Twq.at<float>(3, 3) = 1;
+            Twq.at<float>(0, 0) = pose.at<float>(0, 0);
+            Twq.at<float>(0, 1) = pose.at<float>(0, 1);
+            Twq.at<float>(0, 2) = pose.at<float>(0, 2);
             Twq.at<float>(0, 3) = Obj->mCuboid3D.cuboidCenter[0];
-            Twq.at<float>(1, 0) = 0;
-            Twq.at<float>(1, 1) = 1;
-            Twq.at<float>(1, 2) = 0;
+            Twq.at<float>(1, 0) = pose.at<float>(1, 0);
+            Twq.at<float>(1, 1) = pose.at<float>(1, 1);
+            Twq.at<float>(1, 2) = pose.at<float>(1, 2);
             Twq.at<float>(1, 3) = Obj->mCuboid3D.cuboidCenter[1];
-            Twq.at<float>(2, 0) = 0;
-            Twq.at<float>(2, 1) = 0;
-            Twq.at<float>(2, 2) = 1;
+            Twq.at<float>(2, 0) = pose.at<float>(2, 0);
+            Twq.at<float>(2, 1) = pose.at<float>(2, 1);
+            Twq.at<float>(2, 2) = pose.at<float>(2, 2);
             Twq.at<float>(2, 3) = Obj->mCuboid3D.cuboidCenter[2];
             Twq.at<float>(3, 0) = 0;
             Twq.at<float>(3, 1) = 0;
@@ -571,20 +614,20 @@ void MapDrawer::DrawObject(const bool QuadricObj,
                 glColor3f(1.0, 0.0, 0.0); // red x
                 glBegin(GL_LINES);
                 glVertex3f(0.0, 0.0f, 0.0f);
-                glVertex3f(lenth + axisLen, 0.0f, 0.0f);
+                glVertex3f(lenth, 0.0f, 0.0f);
                 glEnd();
 
                 glColor3f(0.0, 1.0, 0.0); // green y
                 glBegin(GL_LINES);
                 glVertex3f(0.0, 0.0f, 0.0f);
-                glVertex3f(0.0, width + axisLen, 0.0f);
+                glVertex3f(0.0, width, 0.0f);
 
                 glEnd();
 
                 glColor3f(0.0, 0.0, 1.0); // blue z
                 glBegin(GL_LINES);
                 glVertex3f(0.0, 0.0f, 0.0f);
-                glVertex3f(0.0, 0.0f, height + axisLen);
+                glVertex3f(0.0, 0.0f, height);
 
                 glEnd();
             }

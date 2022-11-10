@@ -314,7 +314,7 @@ void RGBDIMessageFlow::SaveTrajectory(){
 RGBDMessageFlow::RGBDMessageFlow(ros::NodeHandle &nh)
 {
     // 初始化图像
-    image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 1000);
+    image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 10000000);
     // image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/rgb/image_color", "/camera/depth/image", 1000);
 
     // 读取参数文件
