@@ -143,7 +143,7 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     std::vector<cv::KeyPoint> _mvKeys;
     cv::Mat _mDescriptors;
 
-    std::cout << "before : N is " << mvKeys.size() << std::endl;
+    // std::cout << "before : N is " << mvKeys.size() << std::endl;
 
     for (size_t i(0); i < mvKeys.size(); ++i)
     {
@@ -171,7 +171,7 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     mvKeys = _mvKeys;
     mDescriptors = _mDescriptors;
 
-    std::cout << "After : N is " << mvKeys.size() << std::endl;
+    // std::cout << "After : N is " << mvKeys.size() << std::endl;
 
     auto show = rawImage.clone();
     for (auto i:mvKeys){
@@ -183,7 +183,7 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     }
 
     // cv::imwrite("/home/chen/Datasets/tmp2/test.png", show);
-    std::cout << "------------------------------" << std::endl;
+    // std::cout << "------------------------------" << std::endl;
 
     N = mvKeys.size();
 
@@ -289,9 +289,6 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     std::chrono::steady_clock::time_point t1 = std::chrono::steady_clock::now();
     ExtractORB(0, imGray);
 
-
-    std::cout << "before : N is " << mvKeys.size() << std::endl;
-
     // Delete those ORB points that fall in mask borders
     cv::Mat Mask_dil = mask.clone();
     int dilation_size = 15;
@@ -319,7 +316,7 @@ Frame::Frame(const cv::Mat &rawImage, // color image.
     mvKeys = _mvKeys;
     mDescriptors = _mDescriptors;
 
-    std::cout << "After : N is " << mvKeys.size() << std::endl;
+    // std::cout << "After : N is " << mvKeys.size() << std::endl;
 
     auto show = rawImage.clone();
     for (auto i : mvKeys)

@@ -30,7 +30,7 @@ class Tracking;
     } while (0)
 
 #define DEVICE 0 // GPU id
-#define NMS_THRESH 0.65
+#define NMS_THRESH 0.45
 #define BBOX_CONF_THRESH 0.3
 
 struct Object
@@ -42,7 +42,7 @@ struct Object
     int lostFrames = 0;
     int idx = 0;
     int similarity = -1;
-    // int trackerIdx = -1;
+    int track_id = -1;
 };
 
 struct GridAndStride
@@ -65,6 +65,7 @@ private:
 
     nvinfer1::Dims out_dims;
     int output_size = 1;
+    const int NUM_CLASSES = 1;
 
     Logger gLogger;
 
@@ -93,7 +94,7 @@ public:
 
     cv::Mat StaticResize(cv::Mat &img);
 
-    int GenerateGridsAndStride(const int target_size, std::vector<int> &strides, std::vector<GridAndStride> &grid_strides);
+    int GenerateGridsAndStride(std::vector<int> &strides, std::vector<GridAndStride> &grid_strides);
 
     float IntersectionArea(const Object &a, const Object &b);
 

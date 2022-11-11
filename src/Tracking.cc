@@ -254,16 +254,17 @@ void Tracking::SetViewer(Viewer *pViewer)
     mpViewer = pViewer;
 }
 
-
-// void Tracking::SetSemanticer(YOLOX *detector)
-// {
-//     Semanticer = detector;
-// }
-
+#ifdef USE_YOLOX_AND_NO_TRACK
+void Tracking::SetSemanticer(YOLOX *detector)
+{
+    Semanticer = detector;
+}
+#else
 void Tracking::SetSemanticer(BYTETrackerImpl *detector)
 {
     ByteTracker = detector;
 }
+#endif
 
 cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const double &timestamp, const bool bSemanticOnline)
 {
@@ -275,12 +276,6 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
     // JBF jointBilateralFilter;
     // cv::Mat DepthFilter = jointBilateralFilter.Processor(rawImage, imDepth);
     // JBF filter end
-
-    // if (bSemanticOnline)
-    // {
-    //     // Semanticer->InsertImage(imRGB);
-    //     ByteTracker->InsertImage(imRGB);
-    // }
 
     mImGray = imRGB;
     cv::Mat imDepth = imD;
@@ -309,30 +304,35 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
 
     cv::Mat mImDepth = imDepth.clone();
 
-    // // STEP 1. Construct Frame.
-    // mCurrentFrame = Frame(rawImage, // new: color image.
-    //                       mImGray,
-    //                       imDepth, // new: 深度图像
-    //                       timestamp,
-    //                       mpORBextractorLeft,
-    //                       mpORBVocabulary,
-    //                       mK,
-    //                       mDistCoef,
-    //                       mbf,
-    //                       mThDepth,
-    //                       mImGray,
-    //                       rawImage);
-
     vector<vector<int> > _mat;
     mCurrentFrame.have_detected = false;
     mCurrentFrame.finish_detected = false;
 
     if (bSemanticOnline)
     {
-        std::vector<BYTE_TRACK::Object> currentObjs;
-        // std::vector<ORB_SLAM2::Object> currentObjs;;
         auto start = std::chrono::system_clock::now();
         int StopCount = 0;
+        std::vector<ORB_SLAM2::Object> currentObjs;
+
+#ifdef USE_YOLOX_AND_NO_TRACK
+        while (1)
+        {
+            if (Semanticer->CheckResult())
+            {
+                Semanticer->GetResult(currentObjs);
+                break;
+            }
+            // Semanticer
+            if (StopCount >= 5 && mState != NOT_INITIALIZED)
+            {
+                std::cout << "[WARRNING] DETECTER ERROR!" << std::endl;
+                break;
+            }
+            usleep(5000);
+            StopCount++;
+        }
+
+#else
         while (1){
             if (ByteTracker->CheckResult()){
                 ByteTracker->GetResult(track_anchors);
@@ -346,28 +346,35 @@ cv::Mat Tracking::GrabImageRGBD(const cv::Mat &imRGB, const cv::Mat &imD, const 
             usleep(5000);
             StopCount++;
         }
-
         if (track_anchors.size() == 0)
         {
             std::cout << "[WARNNING] OBJECTS SIZE IS ZERO" << std::endl;
         }
+#endif
+
         // 耗时计算
         auto end = std::chrono::system_clock::now();
-        std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
-
+        // std::cout << "[INFO] Cost Time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 
         std::vector<BoxSE> boxes_online;
+#ifdef USE_YOLOX_AND_NO_TRACK
+        for (auto &strack : currentObjs)
+        {
+#else
         for (auto &strack : track_anchors)
         {
             auto objInfo = BYTETrackerImpl::STrack2Object(strack);
-            if (objInfo.prob < 0.5)
-                continue;
+
+#endif
+
+            auto objInfo = strack;
             // 0: person; 26: handbag; 28: suitcase; 32: sports ball; 39: bottle; 40: wine glass; 41: cup; 56: chair; 57: couch; 58: potted plant; 59: bed; 60: dining table; 62: tv; 63: laptop; 64:mouse; 65: remote; 66: keyboard; 67: cell phone; 73: book; 74: clock; 75: vase;
-            if (
-            objInfo.label != 0  && objInfo.label != 26 && objInfo.label != 28 && objInfo.label != 32 && objInfo.label != 39 && objInfo.label != 40 && objInfo.label != 41 && objInfo.label != 56 && objInfo.label != 57 && objInfo.label != 58 && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 63 && objInfo.label != 64 &&objInfo.label != 65 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73 && objInfo.label != 74 && objInfo.label != 75)
-                continue;
+            // if (
+            // objInfo.label != 0  && objInfo.label != 26 && objInfo.label != 28 && objInfo.label != 32 && objInfo.label != 39 && objInfo.label != 40 && objInfo.label != 41 && objInfo.label != 56 && objInfo.label != 57 && objInfo.label != 58 && objInfo.label != 59 && objInfo.label != 60 && objInfo.label != 63 && objInfo.label != 64 &&objInfo.label != 65 && objInfo.label != 66 && objInfo.label != 67 && objInfo.label != 73 && objInfo.label != 74 && objInfo.label != 75)
+            //     continue;
+
             BoxSE box;
-            box.m_class = objInfo.label;
+            box.m_class = 45;
             box.m_score = objInfo.prob;
             box.x = objInfo.rect.x;
             box.y = objInfo.rect.y;
@@ -1572,9 +1579,11 @@ bool Tracking::TrackWithMotionModel()
         if (objs_2d[f]->bad)
             continue;
 
-        // // ignore the error detect by yolo.
-        // if ((objs_2d[f]->_class_id == 0) || (objs_2d[f]->_class_id == 63) || (objs_2d[f]->_class_id == 15))
-        //     objs_2d[f]->bad = true;
+        if (conf.model == "multi_classes"){
+            // ignore the error detect by yolox.
+            if ((objs_2d[f]->_class_id == 0) || (objs_2d[f]->_class_id == 63) || (objs_2d[f]->_class_id == 15))
+                objs_2d[f]->bad = true;
+        }
 
         // too large in the image.
         if ((float)objs_2d[f]->mBoxRect.area() / (float)(image.cols * image.rows) > 0.5)
@@ -1915,132 +1924,132 @@ bool Tracking::TrackWithMotionModel()
     }
 
 //--------------------------------------------------------------------------//
-    // ! bytetrack and localization
-    std::vector<std::shared_ptr<Object2DInstance>> tmp;
-    for (auto &anchor : track_anchors)
-    {
-        auto current_anchor = std::make_shared<Anchor>();
-
-        current_anchor->class_id = anchor.label;
-        current_anchor->score = anchor.score;
-        cv::Rect rect(anchor.tlwh[0], anchor.tlwh[1], anchor.tlwh[2], anchor.tlwh[3]);
-        current_anchor->rect = rect;
-        current_anchor->track_id = anchor.track_id;
-
-        int flag = -1;
-        for (size_t i = 0; i < object2DMap.size(); ++i)
-        {
-            auto obj2d = object2DMap[i];
-            if (obj2d->id == anchor.track_id)
-            {
-                auto current_object2d = std::make_shared<Object2DInstance>();
-                current_object2d->id = anchor.track_id;
-                current_object2d->anchor = current_anchor;
-                current_object2d->class_id = anchor.label;
-                current_object2d->detect_flag = 0;
-
-                current_object2d->history = object2DMap[i]->history;
-                current_object2d->history.emplace_back(current_anchor);
-
-                current_object2d->track_len = object2DMap[i]->track_len + 1;
-                current_object2d->frames_list = object2DMap[i]->frames_list;
-                auto Frame = std::make_shared<SimpleFrame>(mCurrentFrame);
-                current_object2d->frames_list.emplace_back(Frame);
-
-                tmp.emplace_back(current_object2d);
-                flag = 1;
-                break;
-            }
-        }
-        if (flag == -1){
-            auto current_object2d = std::make_shared<Object2DInstance>();
-            current_object2d->id = anchor.track_id;
-            current_object2d->anchor = current_anchor;
-            current_object2d->class_id = anchor.label;
-            current_object2d->track_len = 0;
-            current_object2d->detect_flag = 0;
-            // object2DMap.emplace_back(current_object2d);
-            current_object2d->history.emplace_back(current_anchor);
-            auto Frame = std::make_shared<SimpleFrame>(mCurrentFrame);
-            current_object2d->frames_list.emplace_back(Frame);
-            tmp.emplace_back(current_object2d);
-        }
-    }
-
-    object2DMap = tmp;
-    // for (auto &obj : object2DMap)
+    // // ! bytetrack and localization
+    // std::vector<std::shared_ptr<Object2DInstance>> tmp;
+    // for (auto &anchor : track_anchors)
     // {
-    //     std::cout << obj->id << ", ";
+    //     auto current_anchor = std::make_shared<Anchor>();
+
+    //     current_anchor->class_id = anchor.label;
+    //     current_anchor->score = anchor.score;
+    //     cv::Rect rect(anchor.tlwh[0], anchor.tlwh[1], anchor.tlwh[2], anchor.tlwh[3]);
+    //     current_anchor->rect = rect;
+    //     current_anchor->track_id = anchor.track_id;
+
+    //     int flag = -1;
+    //     for (size_t i = 0; i < object2DMap.size(); ++i)
+    //     {
+    //         auto obj2d = object2DMap[i];
+    //         if (obj2d->id == anchor.track_id)
+    //         {
+    //             auto current_object2d = std::make_shared<Object2DInstance>();
+    //             current_object2d->id = anchor.track_id;
+    //             current_object2d->anchor = current_anchor;
+    //             current_object2d->class_id = anchor.label;
+    //             current_object2d->detect_flag = 0;
+
+    //             current_object2d->history = object2DMap[i]->history;
+    //             current_object2d->history.emplace_back(current_anchor);
+
+    //             current_object2d->track_len = object2DMap[i]->track_len + 1;
+    //             current_object2d->frames_list = object2DMap[i]->frames_list;
+    //             auto Frame = std::make_shared<SimpleFrame>(mCurrentFrame);
+    //             current_object2d->frames_list.emplace_back(Frame);
+
+    //             tmp.emplace_back(current_object2d);
+    //             flag = 1;
+    //             break;
+    //         }
+    //     }
+    //     if (flag == -1){
+    //         auto current_object2d = std::make_shared<Object2DInstance>();
+    //         current_object2d->id = anchor.track_id;
+    //         current_object2d->anchor = current_anchor;
+    //         current_object2d->class_id = anchor.label;
+    //         current_object2d->track_len = 0;
+    //         current_object2d->detect_flag = 0;
+    //         // object2DMap.emplace_back(current_object2d);
+    //         current_object2d->history.emplace_back(current_anchor);
+    //         auto Frame = std::make_shared<SimpleFrame>(mCurrentFrame);
+    //         current_object2d->frames_list.emplace_back(Frame);
+    //         tmp.emplace_back(current_object2d);
+    //     }
     // }
-    // std::cout << std::endl;
 
-    // std::cout << "[DEBUG] : track_anchors.size() is " << track_anchors.size() << std::endl;
-    // std::cout << "[DEBUG] : object2DMap.size() is " << object2DMap.size() << std::endl;
+    // object2DMap = tmp;
+    // // for (auto &obj : object2DMap)
+    // // {
+    // //     std::cout << obj->id << ", ";
+    // // }
+    // // std::cout << std::endl;
 
-    std::vector<std::shared_ptr<ORB_SLAM2::Object3DInstance>> trackingObject3Ds;
-    for (auto &obj3d : object3DMap)
-    {
-        // 将3d实例投影到2d空间
-        obj3d->TrackingObject3D(mCurrentFrame);
-        // 不在视野范围内进行下一轮
-        if (!obj3d->object2D->anchor->isInImageBoundary(mCurrentFrame.rgb_))
-            continue;
-        trackingObject3Ds.emplace_back(obj3d);
-    }
+    // // std::cout << "[DEBUG] : track_anchors.size() is " << track_anchors.size() << std::endl;
+    // // std::cout << "[DEBUG] : object2DMap.size() is " << object2DMap.size() << std::endl;
 
-    // KM算法进行数据关联
-    // std::cout << "[DEBUG] USE KM! " << std::endl;
-    std::vector<int> u_detection, u_track;
+    // std::vector<std::shared_ptr<ORB_SLAM2::Object3DInstance>> trackingObject3Ds;
+    // for (auto &obj3d : object3DMap)
+    // {
+    //     // 将3d实例投影到2d空间
+    //     obj3d->TrackingObject3D(mCurrentFrame);
+    //     // 不在视野范围内进行下一轮
+    //     if (!obj3d->object2D->anchor->isInImageBoundary(mCurrentFrame.rgb_))
+    //         continue;
+    //     trackingObject3Ds.emplace_back(obj3d);
+    // }
 
-    Object3DInstance::Association3Dto2D(object2DMap, trackingObject3Ds, u_detection, u_track);
-    // std::cout << "[DEBUG] : u_detection.size() is " << u_detection.size() << std::endl;
-    // std::cout << "[DEBUG] : u_track.size() is " << u_track.size() << std::endl;
+    // // KM算法进行数据关联
+    // // std::cout << "[DEBUG] USE KM! " << std::endl;
+    // std::vector<int> u_detection, u_track;
 
-    // 遍历未检测对应的观测量，当追踪到达一定次数时候升级为3D实例
-    for (size_t i=0; i<u_detection.size(); ++i){
-        // std::cout << "[DEBUG] ID: " << u_detection[i] << std::endl;
-        auto obj2d = object2DMap[u_detection[i]];
-        if (obj2d->track_len > 3){
-            // std::cout << "[INFO] New Object3D Build!" << std::endl;
-            auto obj3d = std::make_shared<Object3DInstance>();
-            obj3d->id = obj2d->class_id;
-            obj3d->object2D = obj2d;
-            if (obj3d->BuildEllipsoid()){
-                object3DMap.emplace_back(obj3d);
-                trackingObject3Ds.emplace_back(obj3d);
-            }
-        }
-    }
+    // Object3DInstance::Association3Dto2D(object2DMap, trackingObject3Ds, u_detection, u_track);
+    // // std::cout << "[DEBUG] : u_detection.size() is " << u_detection.size() << std::endl;
+    // // std::cout << "[DEBUG] : u_track.size() is " << u_track.size() << std::endl;
+
+    // // 遍历未检测对应的观测量，当追踪到达一定次数时候升级为3D实例
+    // for (size_t i=0; i<u_detection.size(); ++i){
+    //     // std::cout << "[DEBUG] ID: " << u_detection[i] << std::endl;
+    //     auto obj2d = object2DMap[u_detection[i]];
+    //     if (obj2d->track_len > 3){
+    //         // std::cout << "[INFO] New Object3D Build!" << std::endl;
+    //         auto obj3d = std::make_shared<Object3DInstance>();
+    //         obj3d->id = obj2d->class_id;
+    //         obj3d->object2D = obj2d;
+    //         if (obj3d->BuildEllipsoid()){
+    //             object3DMap.emplace_back(obj3d);
+    //             trackingObject3Ds.emplace_back(obj3d);
+    //         }
+    //     }
+    // }
 
 
     // debug ------------------------------------------------
     // std::cout << "[DEBUG] : trackingObject3Ds.size() is " << trackingObject3Ds.size() << std::endl;
-    {
-        cv::Mat showIMG = mCurrentFrame.rgb_.clone();
-        for (size_t i = 0; i < trackingObject3Ds.size(); ++i)
-        {
-            cv::Rect tmp = trackingObject3Ds[i]->object2D->anchor->rect;
-            cv::rectangle(showIMG, tmp, cv::Scalar(0, 255, 0), 2);
-            std::string text;
-            stringstream ss;
-            ss << trackingObject3Ds[i]->object2D->anchor->class_id;
-            ss >> text;
-            int baseLine = 0;
-            cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
-            cv::putText(showIMG, text, cv::Point(tmp.x, tmp.y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0), 1);
-        }
+    // {
+    //     cv::Mat showIMG = mCurrentFrame.rgb_.clone();
+    //     for (size_t i = 0; i < trackingObject3Ds.size(); ++i)
+    //     {
+    //         cv::Rect tmp = trackingObject3Ds[i]->object2D->anchor->rect;
+    //         cv::rectangle(showIMG, tmp, cv::Scalar(0, 255, 0), 2);
+    //         std::string text;
+    //         stringstream ss;
+    //         ss << trackingObject3Ds[i]->object2D->anchor->class_id;
+    //         ss >> text;
+    //         int baseLine = 0;
+    //         cv::Size label_size = cv::getTextSize(text, cv::FONT_HERSHEY_SIMPLEX, 0.4, 1, &baseLine);
+    //         cv::putText(showIMG, text, cv::Point(tmp.x, tmp.y + label_size.height), cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0, 0, 0), 1);
+    //     }
 
-        if (trackingObject3Ds.size() > 0)
-        {
-            stringstream ss_;
-            std::string text_;
-            ss_ << mCurrentFrame.mnId;
-            ss_ >> text_;
-            cv::imwrite("/home/chen/Datasets/tmp/" + text_ + ".png", showIMG);
-        }
-        // cv::imshow("debug", showIMG);
-        // cv::waitKey(0);
-    }
+    //     if (trackingObject3Ds.size() > 0)
+    //     {
+    //         stringstream ss_;
+    //         std::string text_;
+    //         ss_ << mCurrentFrame.mnId;
+    //         ss_ >> text_;
+    //         // cv::imwrite("/home/chen/Datasets/tmp/" + text_ + ".png", showIMG);
+    //     }
+    //     // cv::imshow("debug", showIMG);
+    //     // cv::waitKey(0);
+    // }
     // std::cout << "[DEBUG INFO END] ——————————————————————————————————-" << std::endl;
 
     return nmatchesMap >= 10;
@@ -2883,9 +2892,6 @@ void Tracking::AssociateObjAndPoints(vector<Object_2D *> objs_2d)
     }
 } // AssociateObjAndPoints() END -----------------------------------
 
-
-
-
 // BRIEF [EAO] Initialize the object map.
 void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
 {
@@ -2895,7 +2901,8 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
     {
         // Initialize the object map need enough points.
         // 移除人类这个动态障碍物
-        if (obj->_class_id == 0){
+        if (conf.model == "multi_classes" && obj->_class_id == 0)
+        {
             continue;
         }
         if (obj->Obj_c_MapPonits.size() < 10)

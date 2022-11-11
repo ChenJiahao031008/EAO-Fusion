@@ -129,17 +129,17 @@ include_directories(
     ${PROJECT_SOURCE_DIR}/../src/g2oAddition
     ${PROJECT_SOURCE_DIR}/../include/PEAC
     ${PROJECT_SOURCE_DIR}/../src/DepthFilter
-    ${PROJECT_SOURCE_DIR}/../src/bytetrack
-    ${PROJECT_SOURCE_DIR}/../src/ObjectTrack
+    # ${PROJECT_SOURCE_DIR}/../src/bytetrack
+    # ${PROJECT_SOURCE_DIR}/../src/ObjectTrack
     ${PROJECT_SOURCE_DIR}/../src/Tools
-    # ${PROJECT_SOURCE_DIR}/../src/YOLOX
+    ${PROJECT_SOURCE_DIR}/../src/YOLOX
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../lib)
 
 add_library(${PROJECT_NAME}_lib SHARED
     # yolox
-    # ../src/YOLOX/YOLOX.cc
+    ../src/YOLOX/YOLOX.cc
     # ros
     src/message_flow.cc
     src/imu_subscriber.cc
@@ -174,21 +174,22 @@ add_library(${PROJECT_NAME}_lib SHARED
     ../src/DepthFilter/JBF.cc
     ../src/DepthFilter/Kernel.cc
     # byte_track
-    ../src/bytetrack/bytetrack_impl.cc
-    ../src/bytetrack/BYTETracker.cc
-    ../src/bytetrack/kalmanFilter.cc
-    ../src/bytetrack/lapjv.cc
-    ../src/bytetrack/STrack.cc
-    ../src/bytetrack/utils.cc
+    # ../src/bytetrack/bytetrack_impl.cc
+    # ../src/bytetrack/BYTETracker.cc
+    # ../src/bytetrack/kalmanFilter.cc
+    # ../src/bytetrack/lapjv.cc
+    # ../src/bytetrack/STrack.cc
+    # ../src/bytetrack/utils.cc
     # object track
-    ../src/ObjectTrack/ObjectInstance.cc
+    # ../src/ObjectTrack/ObjectInstance.cc
     # tools
     ../src/Tools/Tools.cc
     # dynaslam
     ../src/Geometry.cc
 )
-
-# add_subdirectory(../src/bytetrack ../src/bytetrack/build.out)
+#必须为绝对路径，如有多个文件使用空格隔开
+set(EZCFG_STRUCT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/config/project_config.h)
+add_subdirectory(../Thirdparty/easy_config ../Thirdparty/build.out)
 
 target_link_libraries(${PROJECT_NAME}_lib
     ${catkin_LIBRARIES}
@@ -203,12 +204,13 @@ target_link_libraries(${PROJECT_NAME}_lib
     cudart
     # bytetrack
     dw
+    ezcfg::ezcfg
 )
 
 
-# add_executable(ros_rgbd_imu app/ros_rgbd_imu.cpp)
-# add_dependencies(ros_rgbd_imu ${catkin_EXPORTED_TARGETS})
-# target_link_libraries(ros_rgbd_imu ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
+add_executable(ros_rgbd_imu app/ros_rgbd_imu.cpp)
+add_dependencies(ros_rgbd_imu ${catkin_EXPORTED_TARGETS})
+target_link_libraries(ros_rgbd_imu ${catkin_LIBRARIES} ${PROJECT_NAME}_lib)
 
 add_executable(ros_rgbd app/ros_rgbd.cpp)
 add_dependencies(ros_rgbd ${catkin_EXPORTED_TARGETS})

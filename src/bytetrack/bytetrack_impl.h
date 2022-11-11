@@ -50,7 +50,7 @@ private:
     // const int INPUT_W = 1088;
     // const int INPUT_H = 608;
 
-    const int num_class = 80;
+    const int num_class = 1;
     const int INPUT_W = 640;
     const int INPUT_H = 640;
 

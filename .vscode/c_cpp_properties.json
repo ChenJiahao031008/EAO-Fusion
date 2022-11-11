@@ -1,41 +1,42 @@
 {
-  "configurations": [
-    {
-      "browse": {
-        "databaseFilename": "${default}",
-        "limitSymbolsToIncludedHeaders": false
-      },
-      "includePath": [
-        "/home/chen/object_slam/object_slam_ros_ws/devel/include/**",
-        "/home/chen/catkin_ws/devel/include/**",
-        "/opt/ros/kinetic/include/**",
-        "/home/chen/ros_active_SLAM/devel/include/**",
-        "/home/chen/ros_active_SLAM/src/tools/CameraScanCalib/include/**",
-        "/home/chen/ros_active_SLAM/src/controller/include/**",
-        "/home/chen/ros_active_SLAM/src/hokuyo/driver_common/driver_base/include/**",
-        "/home/chen/catkin_ws/src/floam_pcd/include/**",
-        "/home/chen/ros_active_SLAM/src/hokuyo/laser_proc/include/**",
-        "/home/chen/object_slam/object_slam_ros_ws/src/EAO-Fusion/ros/include/**",
-        "/home/chen/catkin_ws/src/path_3d/include/**",
-        "/home/chen/catkin_ws/src/realsense-ros-2.3.1/realsense2_camera/include/**",
-        "/home/chen/ros_active_SLAM/src/tools/RGBD2PointCloud/include/**",
-        "/home/chen/catkin_ws/src/EAO-Fusion/ros_test/include/**",
-        "/home/chen/ros_active_SLAM/src/rrt/rrt_exploration/include/**",
-        "/home/chen/ros_active_SLAM/src/tools/Scan2PointCloud/include/**",
-        "/home/chen/ros_active_SLAM/src/hokuyo/driver_common/timestamp_tools/include/**",
-        "/home/chen/ros_active_SLAM/src/turtlebot/turtlebot3_simulations/turtlebot3_fake/include/**",
-        "/home/chen/ros_active_SLAM/src/turtlebot/turtlebot3_simulations/turtlebot3_gazebo/include/**",
-        "/home/chen/ros_active_SLAM/src/turtlebot/turtlebot3-kinetic-devel/turtlebot3_slam/include/**",
-        "/home/chen/ros_active_SLAM/src/hokuyo/urg_node/include/**",
-        "/home/chen/catkin_ws/src/visual_docking/include/**",
-        "/usr/include/**"
-      ],
-      "name": "ROS",
-      "intelliSenseMode": "gcc-x64",
-      "compilerPath": "/usr/bin/gcc",
-      "cStandard": "gnu11",
-      "cppStandard": "c++14"
-    }
-  ],
-  "version": 4
+    "configurations": [
+        {
+            "browse": {
+                "databaseFilename": "${default}",
+                "limitSymbolsToIncludedHeaders": false
+            },
+            "includePath": [
+                "/home/chen/object_slam/object_slam_ros_ws/devel/include/**",
+                "/home/chen/catkin_ws/devel/include/**",
+                "/opt/ros/kinetic/include/**",
+                "/home/chen/ros_active_SLAM/devel/include/**",
+                "/home/chen/ros_active_SLAM/src/tools/CameraScanCalib/include/**",
+                "/home/chen/ros_active_SLAM/src/controller/include/**",
+                "/home/chen/ros_active_SLAM/src/hokuyo/driver_common/driver_base/include/**",
+                "/home/chen/catkin_ws/src/floam_pcd/include/**",
+                "/home/chen/ros_active_SLAM/src/hokuyo/laser_proc/include/**",
+                "/home/chen/object_slam/object_slam_ros_ws/src/EAO-Fusion/ros/include/**",
+                "/home/chen/catkin_ws/src/path_3d/include/**",
+                "/home/chen/catkin_ws/src/realsense-ros-2.3.1/realsense2_camera/include/**",
+                "/home/chen/ros_active_SLAM/src/tools/RGBD2PointCloud/include/**",
+                "/home/chen/catkin_ws/src/EAO-Fusion/ros_test/include/**",
+                "/home/chen/ros_active_SLAM/src/rrt/rrt_exploration/include/**",
+                "/home/chen/ros_active_SLAM/src/tools/Scan2PointCloud/include/**",
+                "/home/chen/ros_active_SLAM/src/hokuyo/driver_common/timestamp_tools/include/**",
+                "/home/chen/ros_active_SLAM/src/turtlebot/turtlebot3_simulations/turtlebot3_fake/include/**",
+                "/home/chen/ros_active_SLAM/src/turtlebot/turtlebot3_simulations/turtlebot3_gazebo/include/**",
+                "/home/chen/ros_active_SLAM/src/turtlebot/turtlebot3-kinetic-devel/turtlebot3_slam/include/**",
+                "/home/chen/ros_active_SLAM/src/hokuyo/urg_node/include/**",
+                "/home/chen/catkin_ws/src/visual_docking/include/**",
+                "/usr/include/**"
+            ],
+            "name": "ROS",
+            "intelliSenseMode": "gcc-x64",
+            "compilerPath": "/usr/bin/gcc",
+            "cStandard": "gnu11",
+            "cppStandard": "c++14",
+            "configurationProvider": "ms-vscode.cmake-tools"
+        }
+    ],
+    "version": 4
 }

@@ -236,8 +236,8 @@ void Object3DInstance::Association3Dto2D(
     std::vector<int> rowsol;
     std::vector<int> colsol;
     if (cost_matrix.empty()) return;
-    float c = BYTE_TRACK::BYTETracker::lapjv(cost_matrix, rowsol, colsol, true, 0.8);
-
+    // float c = BYTE_TRACK::BYTETracker::lapjv(cost_matrix, rowsol, colsol, true, 0.8);
+    float c = 0;
     std::cout << "[DEBUG] COMPUTE KM." << std::endl;
 
     for (int i = 0; i < rowsol.size(); i++)

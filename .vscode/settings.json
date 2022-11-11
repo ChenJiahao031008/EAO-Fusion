@@ -7,5 +7,12 @@
         "/home/chen/SLAM_System/AutoWare/tvm/python",
         "/home/chen/SLAM_System/AutoWare/tvm/topi/python",
         "/home/chen/SLAM_System/AutoWare/tvm/nnvm/python"
-    ]
+    ],
+    "cmake.sourceDirectory": "${workspaceFolder}/ros",
+    "files.associations": {
+        "*.BUILD": "cmake",
+        "*.bzl": "python",
+        "BUILD": "python",
+        "chrono": "cpp"
+    }
 }

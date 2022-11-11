@@ -134,7 +134,6 @@ void BYTETrackerImpl::GenerateYoloxProposals(std::vector<BYTE_TRACK::GridAndStri
 
         const int basic_pos = anchor_idx * (num_class + 5);
 
-        // yolox/models/yolo_head.py decode logic
         float x_center = (feat_blob[basic_pos+0] + grid0) * stride;
         float y_center = (feat_blob[basic_pos+1] + grid1) * stride;
         float w = exp(feat_blob[basic_pos+2]) * stride;

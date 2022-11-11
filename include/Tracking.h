@@ -45,9 +45,10 @@
 
 // YOLOX
 #include "Global.h"
+#include "YOLOX.h"
 
 // lst-ot
-#include "ObjectInstance.h"
+// #include "ObjectInstance.h"
 
 namespace ORB_SLAM2
 {
@@ -58,8 +59,8 @@ class Map;
 class LocalMapping;
 class LoopClosing;
 class System;
-// class YOLOX;
-class BYTETrackerImpl;
+class YOLOX;
+// class BYTETrackerImpl;
 class Object2DInstance;
 class Object3DInstance;
 
@@ -81,9 +82,9 @@ public:
     void SetViewer(Viewer* pViewer);
 
 
-    // void SetSemanticer(YOLOX* detector); //yolox
+    void SetSemanticer(YOLOX* detector); //yolox
 
-    void SetSemanticer(BYTETrackerImpl *detector);
+    // void SetSemanticer(BYTETrackerImpl *detector);
 
     // Load new settings
     // The focal lenght should be similar or scale prediction will fail when projecting points
@@ -141,8 +142,8 @@ public:
     int refine_flag;
     // dynaslam:
     DynaSLAM::Geometry mGeometry;
-    // YOLOX* Semanticer;
-    BYTETrackerImpl *ByteTracker;
+    YOLOX* Semanticer;
+    // BYTETrackerImpl *ByteTracker;
 
 
     // Current Frame
@@ -186,7 +187,7 @@ public:
     bool mbSemanticOnline;
 
     // lst-ot
-    std::vector<BYTE_TRACK::STrack> track_anchors;
+    // std::vector<BYTE_TRACK::STrack> track_anchors;
 
     // add obj2d
     std::vector<std::shared_ptr<Object2DInstance>> object2DMap;

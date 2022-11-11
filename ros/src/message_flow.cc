@@ -77,6 +77,7 @@ void RGBDIMessageFlow::Run()
 
         if (sensor == "RGBD"){
             slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);
+            slam_ptr_->mpTracker->Semanticer->InsertImage(cvColorImgMat);
         }
 
         unsynced_imu_data_.clear();
@@ -121,6 +122,7 @@ bool RGBDIMessageFlow::ReadData()
             return false;
         }
         sensor_inited = true;
+        std::cerr << "[INFO] SUCCESS TO START." << std::endl;
     }
 
     return true;
@@ -299,7 +301,7 @@ bool RGBDIMessageFlow::InitIMU(){
     }
     INIT_POSE.block<3, 3>(0, 0) = InitR;
     // initIMUFlag = true;
-    // std::cout << "[INFO] INIT_POSE IS: \n" << INIT_POSE << std::endl;
+    std::cout << "[INFO] INIT_POSE IS: \n" << INIT_POSE << std::endl;
     return true;
 }
 
@@ -314,13 +316,13 @@ void RGBDIMessageFlow::SaveTrajectory(){
 RGBDMessageFlow::RGBDMessageFlow(ros::NodeHandle &nh)
 {
     // 初始化图像
-    image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 10000000);
+    image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/color/image_raw", "/camera/aligned_depth_to_color/image_raw", 100000);
     // image_sub_ptr_ = std::make_shared<IMGSubscriber>(nh, "/camera/rgb/image_color", "/camera/depth/image", 1000);
 
     // 读取参数文件
     const std::string VocFile = WORK_SPACE_PATH + "/Vocabulary/ORBvoc.bin";
-    // const std::string YamlFile = WORK_SPACE_PATH + "/ros/config/D435i.yaml";
-    const std::string YamlFile = WORK_SPACE_PATH + "/ros/config/TUM2.yaml";
+    const std::string YamlFile = WORK_SPACE_PATH + "/ros/config/D435i.yaml";
+    // const std::string YamlFile = WORK_SPACE_PATH + "/ros/config/TUM2.yaml";
 
     // 读取launch文件中的参数
     ros::param::param<std::string>("~sensor", sensor, "RGBD");
@@ -354,7 +356,8 @@ void RGBDMessageFlow::Run()
             continue;
         // double current_time = ros::Time::now().toSec();
         double current_time = current_image_color_data_.header.stamp.toSec();
-        slam_ptr_->mpTracker->ByteTracker->InsertImage(cvColorImgMat);
+        // slam_ptr_->mpTracker->ByteTracker->InsertImage(cvColorImgMat);
+        slam_ptr_->mpTracker->Semanticer->InsertImage(cvColorImgMat);
 
         if (sensor == "RGBD")
             slam_ptr_->TrackRGBD(cvColorImgMat, cvDepthMat, current_time);

@@ -61,14 +61,15 @@ cv::Mat YOLOX::StaticResize(cv::Mat &img)
     return out;
 }
 
-int YOLOX::GenerateGridsAndStride(const int target_size, std::vector<int> &strides, std::vector<GridAndStride> &grid_strides)
+int YOLOX::GenerateGridsAndStride(std::vector<int> &strides, std::vector<GridAndStride> &grid_strides)
 {
     for (auto stride : strides)
     {
-        int num_grid = target_size / stride;
-        for (int g1 = 0; g1 < num_grid; g1++)
+        int num_grid_y = INPUT_H / stride;
+        int num_grid_x = INPUT_W / stride;
+        for (int g1 = 0; g1 < num_grid_y; g1++)
         {
-            for (int g0 = 0; g0 < num_grid; g0++)
+            for (int g0 = 0; g0 < num_grid_x; g0++)
             {
                 grid_strides.push_back((GridAndStride){g0, g1, stride});
             }
@@ -165,8 +166,6 @@ void YOLOX::NmsSortedBboxes(const std::vector<Object> &faceobjects, std::vector<
 
 void YOLOX::GenerateYoloxProposals(std::vector<GridAndStride> grid_strides, float *feat_blob, float prob_threshold, std::vector<Object> &objects)
 {
-    const int num_class = 80;
-
     const int num_anchors = grid_strides.size();
 
     for (int anchor_idx = 0; anchor_idx < num_anchors; anchor_idx++)
@@ -175,7 +174,8 @@ void YOLOX::GenerateYoloxProposals(std::vector<GridAndStride> grid_strides, floa
         const int grid1 = grid_strides[anchor_idx].grid1;
         const int stride = grid_strides[anchor_idx].stride;
 
-        const int basic_pos = anchor_idx * 85;
+        // const int basic_pos = anchor_idx * 85;
+        const int basic_pos = anchor_idx * (NUM_CLASSES + 5);
 
         // yolox/models/yolo_head.py decode logic
         float x_center = (feat_blob[basic_pos + 0] + grid0) * stride;
@@ -186,7 +186,7 @@ void YOLOX::GenerateYoloxProposals(std::vector<GridAndStride> grid_strides, floa
         float y0 = y_center - h * 0.5f;
 
         float box_objectness = feat_blob[basic_pos + 4];
-        for (int class_idx = 0; class_idx < num_class; class_idx++)
+        for (int class_idx = 0; class_idx < NUM_CLASSES; class_idx++)
         {
             float box_cls_score = feat_blob[basic_pos + 5 + class_idx];
             float box_prob = box_objectness * box_cls_score;
@@ -210,14 +210,10 @@ void YOLOX::GenerateYoloxProposals(std::vector<GridAndStride> grid_strides, floa
 
 float* YOLOX::BlobFromImage(cv::Mat &img)
 {
-    cv::cvtColor(img, img, cv::COLOR_BGR2RGB);
-
     float *blob = new float[img.total() * 3];
     int channels = 3;
-    int img_h = 640;
-    int img_w = 640;
-    std::vector<float> mean = {0.485, 0.456, 0.406};
-    std::vector<float> std = {0.229, 0.224, 0.225};
+    int img_h = img.rows;
+    int img_w = img.cols;
     for (size_t c = 0; c < channels; c++)
     {
         for (size_t h = 0; h < img_h; h++)
@@ -225,7 +221,7 @@ float* YOLOX::BlobFromImage(cv::Mat &img)
             for (size_t w = 0; w < img_w; w++)
             {
                 blob[c * img_w * img_h + h * img_w + w] =
-                    (((float)img.at<cv::Vec3b>(h, w)[c]) / 255.0f - mean[c]) / std[c];
+                    (float)img.at<cv::Vec3b>(h, w)[c];
             }
         }
     }
@@ -237,7 +233,7 @@ void YOLOX::DecodeOutputs(float *prob, std::vector<Object> &objects, float scale
     std::vector<Object> proposals;
     std::vector<int> strides = {8, 16, 32};
     std::vector<GridAndStride> grid_strides;
-    GenerateGridsAndStride(INPUT_W, strides, grid_strides);
+    GenerateGridsAndStride(strides, grid_strides);
     GenerateYoloxProposals(grid_strides, prob, BBOX_CONF_THRESH, proposals);
     // std::cout << "num of boxes before nms: " << proposals.size() << std::endl;
 

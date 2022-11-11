@@ -36,8 +36,12 @@
 #include "ORBVocabulary.h"
 #include "Viewer.h"
 
-// #include "YOLOX.h"
-#include "bytetrack_impl.h"
+#include "YOLOX.h"
+
+#include "Global.h"
+#include "config/project_config.h"
+#include <interpreter.hpp>
+// #include "bytetrack_impl.h"
 
 namespace ORB_SLAM2
 {
@@ -48,8 +52,8 @@ class Map;
 class Tracking;
 class LocalMapping;
 class LoopClosing;
-// class YOLOX;
-class BYTETrackerImpl;
+class YOLOX;
+// class BYTETrackerImpl;
 
 class System
 {
@@ -62,45 +66,17 @@ public:
     };
 
 public:
-
-    // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
     System( const string &strVocFile, const string &strSettingsFile, const string &flag,
             const eSensor sensor, const bool bUseViewer = true, const bool SemanticOnline = false);
 
-
-    // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
-    // Input image: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
-    // Input depthmap: Float (CV_32F).
-    // Returns the camera pose (empty if tracking fails).
     cv::Mat TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp);
 
-    // This stops local mapping thread (map building) and performs only camera tracking.
     void ActivateLocalizationMode();
-    // This resumes local mapping thread and performs SLAM again.
     void DeactivateLocalizationMode();
-
-    // Reset the system (clear map)
     void Reset();
-
-    // All threads will be requested to finish.
-    // It waits until all threads have finished.
-    // This function must be called before saving the trajectory.
     void Shutdown();
-
-    // Save camera trajectory in the TUM RGB-D dataset format.
-    // Call first Shutdown()
-    // See format details at: http://vision.in.tum.de/data/datasets/rgbd-dataset
     void SaveTrajectoryTUM(const string &filename);
-
-    // Save keyframe poses in the TUM RGB-D dataset format.
-    // Use this function in the monocular case.
-    // Call first Shutdown()
-    // See format details at: http://vision.in.tum.de/data/datasets/rgbd-dataset
     void SaveKeyFrameTrajectoryTUM(const string &filename);
-
-    // Save camera trajectory in the KITTI dataset format.
-    // Call first Shutdown()
-    // See format details at: http://www.cvlibs.net/datasets/kitti/eval_odometry.php
     void SaveTrajectoryKITTI(const string &filename);
 
 public:
@@ -127,9 +103,9 @@ private:
     std::thread* mptLoopClosing;
     std::thread* mptViewer;
 
-    // YOLOX *mpSemanticer;         // yolo online.
-    // std::thread* mptSemanticer;  // yolo online.
-    BYTETrackerImpl *mpByteTrack;
+    YOLOX *mpSemanticer;         // yolo online.
+    std::thread* mptSemanticer;  // yolo online.
+    // BYTETrackerImpl *mpByteTrack;
     std::thread *mptByteTrack;
 
     // Reset flag

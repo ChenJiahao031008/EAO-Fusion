@@ -12,7 +12,15 @@
 #include <string>
 #include <Eigen/Dense>
 
+#include "config/project_config.h"
+#include <interpreter.hpp>
+
 extern std::string WORK_SPACE_PATH;
 extern Eigen::Matrix4d INIT_POSE;
+
+#define USE_YOLOX_AND_NO_TRACK
+
+extern std::shared_ptr<ezcfg::Interpreter> itp;
+extern ProjectConfig conf;
 
 #endif

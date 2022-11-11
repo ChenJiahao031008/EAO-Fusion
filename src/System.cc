@@ -26,7 +26,6 @@
 #include <pangolin/pangolin.h>
 #include <iomanip>
 
-
 bool has_suffix(const std::string &str, const std::string &suffix) {
   std::size_t index = str.find(suffix, str.size() - suffix.size());
   return (index != std::string::npos);
@@ -108,12 +107,26 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
 
     // _____________________________yolox_______________________________
-    std::string engineFile = WORK_SPACE_PATH + "/ros/config/model_trt.engine";
-    // mpSemanticer = new YOLOX(engineFile);
-    // mptSemanticer = new thread(&ORB_SLAM2::YOLOX::Run, mpSemanticer);
+    std::string config_path = WORK_SPACE_PATH + "/ros/config/project_config.txt";
+    std::shared_ptr<ezcfg::Interpreter> itp = std::shared_ptr<ezcfg::Interpreter>(new ezcfg::Interpreter(config_path, true));
+    ProjectConfig conf;
+    itp->parse(conf);
 
-    mpByteTrack = new BYTETrackerImpl(engineFile);
-    mptByteTrack = new thread(&ORB_SLAM2::BYTETrackerImpl::Run, mpByteTrack);
+    std::string engineFile;
+    if (conf.model == "only_car"){
+        engineFile = WORK_SPACE_PATH + "/ros/config/only_car/model_trt.engine";
+    }else if(conf.model == "only_person"){
+        engineFile = WORK_SPACE_PATH + "/ros/config/only_person/model_trt.engine";
+    }else if(conf.model == "multi_classes"){
+        engineFile = WORK_SPACE_PATH + "/ros/config/multi_classes/model_trt.engine";
+    }else{
+        std::cerr << "Engine File Fail! Please Check!\n";
+    }
+    mpSemanticer = new YOLOX(engineFile);
+    mptSemanticer = new thread(&ORB_SLAM2::YOLOX::Run, mpSemanticer);
+
+    // mpByteTrack = new BYTETrackerImpl(engineFile);
+    // mptByteTrack = new thread(&ORB_SLAM2::BYTETrackerImpl::Run, mpByteTrack);
     // _____________________________yolox_______________________________
 
     //Initialize the Viewer thread and launch
@@ -133,11 +146,11 @@ System::System(const string &strVocFile, const string &strSettingsFile,
     // [EAO] Set pointers between threads.
     if(bSemanticOnline)
     {
-        // mpTracker->SetSemanticer(mpSemanticer);
-        // mpSemanticer->SetTracker(mpTracker);
+        mpTracker->SetSemanticer(mpSemanticer);
+        mpSemanticer->SetTracker(mpTracker);
 
-        mpTracker->SetSemanticer(mpByteTrack);
-        mpByteTrack->SetTracker(mpTracker);
+        // mpTracker->SetSemanticer(mpByteTrack);
+        // mpByteTrack->SetTracker(mpTracker);
     }
 }
 
@@ -208,15 +221,16 @@ void System::Shutdown()
 {
     mpLocalMapper->RequestFinish();
     mpLoopCloser->RequestFinish();
-    // mpSemanticer->RequestFinish();
-    mpByteTrack->RequestFinish();
+    mpSemanticer->RequestFinish();
+    // mpByteTrack->RequestFinish();
 
     // Wait until all thread have effectively stopped
     while (!mpLocalMapper->isFinished() ||
            !mpLoopCloser->isFinished() ||
-        //    !mpSemanticer->isFinished() ||
-           mpLoopCloser->isRunningGBA() ||
-           !mpByteTrack->isFinished())
+           !mpSemanticer->isFinished() ||
+           mpLoopCloser->isRunningGBA()
+        //    || !mpByteTrack->isFinished()
+    )
     {
         usleep(5000);
     }
@@ -244,12 +258,6 @@ void System::SaveTrajectoryTUM(const string &filename)
     f.open(filename.c_str());
     f << fixed;
 
-    // Frame pose is stored relative to its reference keyframe (which is optimized by BA and pose graph).
-    // We need to get first the keyframe pose and then concatenate the relative transformation.
-    // Frames not localized (tracking failure) are not saved.
-
-    // For each frame we have a reference keyframe (lRit), the timestamp (lT) and a flag
-    // which is true when tracking failed (lbL).
     list<ORB_SLAM2::KeyFrame*>::iterator lRit = mpTracker->mlpReferences.begin();
     list<double>::iterator lT = mpTracker->mlFrameTimes.begin();
     list<bool>::iterator lbL = mpTracker->mlbLost.begin();
