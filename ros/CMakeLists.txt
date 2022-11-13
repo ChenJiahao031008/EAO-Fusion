@@ -133,6 +133,8 @@ include_directories(
     # ${PROJECT_SOURCE_DIR}/../src/ObjectTrack
     ${PROJECT_SOURCE_DIR}/../src/Tools
     ${PROJECT_SOURCE_DIR}/../src/YOLOX
+    ${PROJECT_SOURCE_DIR}/../src/Ellipsoid
+
 )
 
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/../lib)
@@ -186,6 +188,8 @@ add_library(${PROJECT_NAME}_lib SHARED
     ../src/Tools/Tools.cc
     # dynaslam
     ../src/Geometry.cc
+    # ellipsoid
+    ../src/Ellipsoid/Ellipsoid.cc
 )
 #必须为绝对路径，如有多个文件使用空格隔开
 set(EZCFG_STRUCT_HEADER_FILE ${CMAKE_CURRENT_SOURCE_DIR}/config/project_config.h)

@@ -797,6 +797,34 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         ObjectMapSingle->mntrack_id = _track_id;
         this->mAssMapObjCenter = this->_Pos;
 
+        EllipsoidExtractor e;
+        cv::Mat depth = mCurrentFrame.mImDepth.clone();
+        Eigen::Vector4d bbox;
+        bbox << this->mBox.x, this->mBox.y, this->mBox.x + this->mBox.width, this->mBox.y + this->mBox.height;
+        Eigen::Matrix4f pose;
+        pose.resize(mCurrentFrame.mTcw.rows, mCurrentFrame.mTcw.cols);
+        for (int i = 0; i < mCurrentFrame.mTcw.rows; i++)
+            for (int j = 0; j < mCurrentFrame.mTcw.cols; j++)
+                pose(i, j) = mCurrentFrame.mTcw.at<float>(i, j);
+
+        CameraIntrinsic camera;
+        camera.cx = mCurrentFrame.cx;
+        camera.cy = mCurrentFrame.cy;
+        camera.fx = mCurrentFrame.fx;
+        camera.fy = mCurrentFrame.fy;
+        camera.scale = mCurrentFrame.mDepthMapFactor;
+
+        pcl::PointCloud<PointType>::Ptr pCloudPCL = e.ExtractPointCloud(depth, bbox, pose, camera);
+        std::cout << "Num:  " << pCloudPCL->points.size() << std::endl;
+        PCAResult data = e.ProcessPCA(pCloudPCL);
+
+        e.AdjustChirality(data);
+        e.AlignZAxisToGravity(data);
+        Eigen::Matrix3d res_pos = (pose.block<3, 3>(0, 0)).cast<double>().transpose() * data.rotMat;
+        Eigen::Vector3d euler = data.rotMat.eulerAngles(0, 1, 2);
+        double yaw = euler[2];
+        // ObjectMapSingle->mCuboid3D.rotY = yaw;
+
         // add properties of the point and save it to the object.
         for (size_t i = 0; i < Obj_c_MapPonits.size(); i++)
         {
@@ -824,6 +852,7 @@ void Object_2D::ObjectDataAssociation(Map *mpMap, Frame &mCurrentFrame, cv::Mat 
         // update object map.
         ObjectMapSingle->IsolationForestDeleteOutliers();
         ObjectMapSingle->ComputeMeanAndStandard();
+        ObjectMapSingle->mCuboid3D.pose = g2o::SE3Quat(data.rotMat, Eigen::Vector3d(0, 0, 1));
         mpMap->mvObjectMap.push_back(ObjectMapSingle);
         // create a new object END ------------------------------------------------------
     }
@@ -1231,7 +1260,6 @@ void Object_Map::ComputeMeanAndStandard()
 
     // step 4. update object pose.
     // notes: 利用yaw角对位姿进行矫正，同时把物体中心移动到世界坐标下
-    // 疑问：但是这里yaw好像没有变？感觉可以去掉？
     UpdateObjPose();
     // world -> object frame.
     vector<float> x_pt_obj, y_pt_obj, z_pt_obj;

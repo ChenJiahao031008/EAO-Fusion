@@ -301,7 +301,7 @@ bool RGBDIMessageFlow::InitIMU(){
     }
     INIT_POSE.block<3, 3>(0, 0) = InitR;
     // initIMUFlag = true;
-    std::cout << "[INFO] INIT_POSE IS: \n" << INIT_POSE << std::endl;
+    // std::cout << "[INFO] INIT_POSE IS: \n" << INIT_POSE << std::endl;
     return true;
 }
 

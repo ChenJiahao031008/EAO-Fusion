@@ -8,7 +8,9 @@ Thirdparty/DBoW2/lib/
 Thirdparty/g2o/build/
 Thirdparty/g2o/lib/
 Thirdparty/Line3Dpp/build/
-ros/config/model_trt.engine
+ros/config/multi_classes/model_trt.engine
+ros/config/only_person/model_trt.engine
+ros/config/only_car/model_trt.engine
 build/
 lib/
 results_line_segments/

@@ -21,6 +21,6 @@ extern Eigen::Matrix4d INIT_POSE;
 #define USE_YOLOX_AND_NO_TRACK
 
 extern std::shared_ptr<ezcfg::Interpreter> itp;
-extern ProjectConfig conf;
+// extern ProjectConfig conf;
 
 #endif

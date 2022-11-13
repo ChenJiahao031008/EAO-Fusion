@@ -50,6 +50,9 @@
 // lst-ot
 // #include "ObjectInstance.h"
 
+
+#include "Ellipsoid.h"
+
 namespace ORB_SLAM2
 {
 

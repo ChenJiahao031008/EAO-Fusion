@@ -1579,11 +1579,11 @@ bool Tracking::TrackWithMotionModel()
         if (objs_2d[f]->bad)
             continue;
 
-        if (conf.model == "multi_classes"){
-            // ignore the error detect by yolox.
-            if ((objs_2d[f]->_class_id == 0) || (objs_2d[f]->_class_id == 63) || (objs_2d[f]->_class_id == 15))
-                objs_2d[f]->bad = true;
-        }
+        // if (conf.model == "multi_classes"){
+        //     // ignore the error detect by yolox.
+        //     if ((objs_2d[f]->_class_id == 0) || (objs_2d[f]->_class_id == 63) || (objs_2d[f]->_class_id == 15))
+        //         objs_2d[f]->bad = true;
+        // }
 
         // too large in the image.
         if ((float)objs_2d[f]->mBoxRect.area() / (float)(image.cols * image.rows) > 0.5)
@@ -2901,10 +2901,10 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
     {
         // Initialize the object map need enough points.
         // 移除人类这个动态障碍物
-        if (conf.model == "multi_classes" && obj->_class_id == 0)
-        {
-            continue;
-        }
+        // if (conf.model == "multi_classes" && obj->_class_id == 0)
+        // {
+        //     continue;
+        // }
         if (obj->Obj_c_MapPonits.size() < 10)
         {
             obj->few_mappoint = true;
@@ -2936,6 +2936,34 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
 
         ObjectMapSingle->mntrack_id = obj->_track_id; // object track id.
 
+        EllipsoidExtractor e;
+        cv::Mat depth = mCurrentFrame.mImDepth.clone();
+        Eigen::Vector4d bbox;
+        bbox << obj->mBoxRect.x, obj->mBoxRect.y, obj->mBoxRect.x + obj->mBoxRect.width, obj->mBoxRect.y + obj->mBoxRect.height;
+        Eigen::Matrix4f pose;
+        pose.resize(mCurrentFrame.mTcw.rows, mCurrentFrame.mTcw.cols);
+        for (int i = 0; i < mCurrentFrame.mTcw.rows; i++)
+            for (int j = 0; j < mCurrentFrame.mTcw.cols; j++)
+                pose(i, j) = mCurrentFrame.mTcw.at<float>(i, j);
+
+        CameraIntrinsic camera;
+        camera.cx = mCurrentFrame.cx;
+        camera.cy = mCurrentFrame.cy;
+        camera.fx = mCurrentFrame.fx;
+        camera.fy = mCurrentFrame.fy;
+        camera.scale = mCurrentFrame.mDepthMapFactor;
+
+        pcl::PointCloud<PointType>::Ptr pCloudPCL = e.ExtractPointCloud(depth, bbox, pose, camera);
+        PCAResult data = e.ProcessPCA(pCloudPCL);
+
+        e.AdjustChirality(data);
+        e.AlignZAxisToGravity(data);
+        Eigen::Matrix3d res_pos = (pose.block<3, 3>(0, 0)).cast<double>().transpose() * data.rotMat;
+        Eigen::Vector3d euler = data.rotMat.eulerAngles(0, 1, 2);
+        double yaw = euler[2];
+
+        // ObjectMapSingle->mCuboid3D.rotY = yaw;
+
         // add properties of the point and save it to the object.
         for (size_t i = 0; i < obj->Obj_c_MapPonits.size(); i++)
         {
@@ -2965,6 +2993,7 @@ void Tracking::InitObjMap(vector<Object_2D *> objs_2d)
 
         // updata map.
         ObjectMapSingle->ComputeMeanAndStandard();
+        ObjectMapSingle->mCuboid3D.pose = g2o::SE3Quat(data.rotMat, Eigen::Vector3d(0, 0, 1));
         mpMap->mvObjectMap.push_back(ObjectMapSingle);
     }
 } // initialize the object map. END -----------------------------------------------------
